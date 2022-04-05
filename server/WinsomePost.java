@@ -162,6 +162,8 @@ public class WinsomePost{
         commentSum++; // +1 della formula
 
         reward = ( Math.log(voteSum) + Math.log(commentSum) ) / this.nIterations;
+        if ( reward < 0 )
+            reward = 0;
         nIterations++;
 
         return new RewardAndCurators(reward, curators);
