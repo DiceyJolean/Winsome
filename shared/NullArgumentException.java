@@ -3,13 +3,13 @@ package shared;
 /**
  * Thrown to indicate that a method has been passed a null argument
  */
-public class ArgumentNullException extends Exception{
+public class NullArgumentException extends Exception{
 
-    public ArgumentNullException(){
+    public NullArgumentException(){
         super();
     }
 
-    public ArgumentNullException(String s){
+    public NullArgumentException(String s){
         super(s);
     }
 }
