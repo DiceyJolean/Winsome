@@ -1,8 +1,11 @@
 package server;
 
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -25,7 +28,10 @@ public class RewardCalculator implements Runnable{
     class ConfigRewardCalc{
         private String host;
         private InetAddress address;
-        private int period;
+        private int port;
+        private int period; // Periodo di tempo ogni quanto il thread calcola le ricompense
+        private int percAuth; // Perchntuale di ricompensa che spetta all'autore del post
+        private int percCur; // Percentuale di ricompensa che spetta ai curatori del post
         
         // Restituire indietro un valore invece che propagare un'eccezione
         boolean validate()
@@ -41,45 +47,17 @@ public class RewardCalculator implements Runnable{
                 throw new RewardCalculatorConfigurationException("L'indirizzo IP non è un indirizzo di multicast");
             }
 
+            if ( port < 1024 || port > 65535 )
+                throw new RewardCalculatorConfigurationException("Numero di porta non valido");
+
             if ( period < 0 )
                 throw new RewardCalculatorConfigurationException("Il periodo per il calcolo delle ricompense è troppo breve");
 
+            if ( percAuth < 0 || percCur < 0 || ( percAuth + percCur ) != 1 )
+                throw new RewardCalculatorConfigurationException("Le percentuali di ricompensa per autore e curatori non sono valide");
 
 
             return false;
-        }
-    }
-
-    public class SumAndCurators{
-        private int sum;
-        private Set<String> curators;
-        
-        public SumAndCurators(int sum, Set<String> curators){
-            this.sum = sum;
-            this.curators = curators;
-        }
-
-        public Set<String> getCurators(){
-            Set<String> copy = new HashSet<String>();
-            copy.addAll(this.curators);
-            return copy;
-        }
-
-        public boolean addCurator(String user){
-            return this.curators.add(user);
-        }
-
-        public boolean updateSum(int sum){
-            if ( sum > this.sum )
-                this.sum += sum;
-
-            return true;
-        }
-
-        public boolean resetSum(){
-            this.sum = 0;
-
-            return true;
         }
     }
 
@@ -119,6 +97,15 @@ public class RewardCalculator implements Runnable{
         try{
             DatagramSocket socket = new DatagramSocket();
 
+            double rewUpdate = 0;
+            double rewPost = 0;
+            Set<String> curators = new HashSet<String>();
+            Collection<WinsomeUser> users;
+            // Raccolta delle ricompense per utente
+            HashMap<String, Double> rewardPerUser = new HashMap<String, Double>();
+            byte[] buf = ( new String("Nuove ricompense disponibili")).getBytes();
+            DatagramPacket packet = new DatagramPacket(buf, buf.length, config.address, config.port);
+
             while ( !terminate ){
                 try{
                     Thread.sleep(config.period);
@@ -126,40 +113,75 @@ public class RewardCalculator implements Runnable{
                     // TODO Eccezione fatale
                 }
 
-                // Ottengo una copia della lista dei post
-                // Mi piace l'idea della copia per due motivi
-                // - non devo mantenere la struttura bloccata per la sincronizzazione
-                // - tutte le ricompense vengono calcolate sullo stesso stato del DB
-                
-                Set<String> users = database.getUsers(); // Deep copy dei nickname degli utenti
-                for (String user : users ){
+                rewardPerUser.clear();
+
+                database.lockUserDB.readLock().lock(); // Blocco il database degli utenti in modalità lettura
+                // Ottengo la lista di tutti gli utenti
+                users = database.getUsers();
+                for (WinsomeUser user : users )
+                    // Creo una entry per ogni utente nella struttura contenente il risultato del calcolo delle ricompense
+                    rewardPerUser.put(user.getNickname(), null);
+
+                for (WinsomeUser user : users ){
+                    
+                    // NON È NECESSARIO SINCRONIZZARE PERCHÉ STO LAVORANDO SU UNA COPIA
+
+                    // Se nel frattempo qualche utente crea nuovi post?
+                    // Le alternative sono due, semplicemente:
+                    // - lavoro su dati "vecchi" ma le ricompense sono più giuste
+                    // - lavoro su un puntatore sincronizzanto,
+                    // In entrambi i casi possono avvenire operazioni di utenti attualmente non sincronizzati
+                    // Potrei risolvere con una readlock su tutta la struttura
+                    user.lockUser.readLock().lock();
 
                     // Per ogni utente calcolo la ricompensa
-                    // Faccio tutto senza sincronizzazione perché sto lavorando su una copia
-                    // Se nel frattempo avviene qualche modifica, verrà elaborata alla prossima iterazione
-                    // Se qualche utente si cancella da Winsome, semplicemente l'utente non farà più parte del multicast
 
-                    Set<String> curators = new HashSet<String>();
-                    double reward = 0;
+                    for (WinsomePost post : database.getPostPerUser(user.getNickname())){
+                        // Curatori del post tra i quali dividere la ricompensa
+                        curators.clear();
+                        rewPost = 0;
+                        // I metodi di post sono synchronized, ma lo tolgo su questi che chiamo qui
+                        synchronized (post){
+                            int voteSum = post.countVote(curators);
+                            // In questo punto lo stesso post potrebbe ricevere alcuni commenti e non mi piace
+                            // Sincronizzo durante il calcolo
+                            int commentSum = post.countComments(curators);
 
-                    for (WinsomePost post : database.getPostPerUser(user)){
-                        int voteSum = post.countVote(curators);
-                        int commentSum = post.countComments(curators);
-
-
-                        reward += ( Math.log(voteSum) + Math.log(commentSum) ) / post.getIterations();
-                        if ( reward < 0 )
-                            reward = 0;
+                            rewPost = ( Math.log(voteSum) + Math.log(commentSum) ) / post.getIterations();
+                            if ( rewPost < 0 )
+                                rewPost = 0;
+                            
+                            post.increaseIterations();
+                            post.switchNewOld();
+                        }
+                    
+                        for ( String curator : curators ){
+                            // Per ogni curatore del post aggiorno la ricompensa totale
+                            rewUpdate = rewardPerUser.get(curator);
+                            rewUpdate += ( rewPost * config.percCur ) / curators.size();
+                            rewardPerUser.replace(curator, rewUpdate);
+                        }
                         
-                        post.increaseIterations();
+                        // Aggiorno le ricompense dell'utente con quelle calcolate sul post
+                        rewUpdate = rewardPerUser.get(user.getNickname());
+                        rewUpdate += ( rewPost * config.percAuth );
+                        rewardPerUser.replace(user.getNickname(), rewUpdate);
                     }
-
-                    // Adesso posso avvisare l'utente e i curatori
+                    user.lockUser.readLock().unlock();
                 }
+                // Ho calcolato le ricompense per tutti gli utenti
+                // Per aggiornare il portafoglio degli utenti devo accedere alla struttura in modalità scrittura
+                // E qui si ribadisce la necessità di una ReadWriteLock sul database degli utenti
+                for ( WinsomeUser user : users ){
+                    user.lockUser.writeLock().lock();
+                    user.updateReward(rewardPerUser.get(user.getNickname()));
+                    user.lockUser.writeLock().unlock();
+                }
+                database.lockUserDB.readLock().unlock();
 
-
+                // Invio la notifica che le ricompense sono state aggiorate
+                socket.send(packet);
             }
-
 
             socket.close();
         } catch ( Exception e ){

@@ -8,7 +8,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import server.RewardCalculator.SumAndCurators;
 import shared.NullArgumentException;
 
 public class WinsomePost{
@@ -131,8 +130,14 @@ public class WinsomePost{
         }
     }
 
-    // Synch perché qualcuno potrebbe accedere alla struttura nel frattempo
-    public synchronized boolean switchNewOld(){
+
+    /**
+     * I metodi che seguono sono chiamati esclusivamente dal thread per il calcolo delle ricompense
+     * Non sono sincronizzati il thread per il calcolo delle ricompense si occuperà di gestire la concorrenza
+     * In questo modo la ricompensa relativa ai singoli post viene calcolata sulla stessa istanza dell'oggetto
+     */
+
+    public boolean switchNewOld(){
 
         // Sposto i voti nuovi nella struttura di quelli già contati
         // L'operazione è sicura, perché ho già controllato i duplicati al momento 
@@ -165,7 +170,7 @@ public class WinsomePost{
         return true;
     }
 
-    public synchronized int countVote(Set<String> curators){
+    public int countVote(Set<String> curators){
         int voteSum = 0;
         for ( ConcurrentHashMap.Entry<String, Vote> vote : newVotes.entrySet() ){
             
@@ -184,7 +189,7 @@ public class WinsomePost{
         return voteSum;
     }
 
-    public synchronized int countComments(Set<String> curators){
+    public int countComments(Set<String> curators){
         int commentSum = 0;
 
         for ( Entry<String, ArrayList<String>> entry : newComments.entrySet() ){

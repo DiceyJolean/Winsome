@@ -2,6 +2,8 @@ package server;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import server.bcrypt.src.BCrypt;
 import shared.*;
@@ -24,6 +26,7 @@ public class WinsomeUser {
     private Set<Integer> postRewinned; // I post sono indicati univocamente dal loro postID
     private Set<WinsomePost> blog; // Insieme dei post pubblicati da questo utente TODO ridondanza?? Sarà solo un riferimento, giustamente!
     private double wallet;
+    public ReadWriteLock lockUser;
 
     /**
      * Crea un nuovo utente Winsome con associata password (hashata) e lista di tag (NON modificabile)
@@ -56,6 +59,11 @@ public class WinsomeUser {
         this.blog = new HashSet<WinsomePost>();
         this.tag = new HashSet<String>();
         this.tag.addAll(tags);
+        this.lockUser = new ReentrantReadWriteLock();
+    }
+
+    public String getNickname(){
+        return this.nickname;
     }
 
     /**
