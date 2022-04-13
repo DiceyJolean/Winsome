@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import shared.*;
 
@@ -100,7 +101,7 @@ public class RewardCalculator implements Runnable{
             double rewUpdate = 0;
             double rewPost = 0;
             Set<String> curators = new HashSet<String>();
-            Collection<WinsomeUser> users;
+            ConcurrentHashMap<String, WinsomeUser> users;
             // Raccolta delle ricompense per utente
             HashMap<String, Double> rewardPerUser = new HashMap<String, Double>();
             byte[] buf = ( new String("Nuove ricompense disponibili")).getBytes();
@@ -118,13 +119,14 @@ public class RewardCalculator implements Runnable{
                 database.lockUserDB.readLock().lock(); // Blocco il database degli utenti in modalità lettura
                 // Ottengo la lista di tutti gli utenti
                 users = database.getUsers();
-                for (WinsomeUser user : users )
-                    // Creo una entry per ogni utente nella struttura contenente il risultato del calcolo delle ricompense
-                    rewardPerUser.put(user.getNickname(), null);
 
-                for (WinsomeUser user : users ){
-                    
-                    // NON È NECESSARIO SINCRONIZZARE PERCHÉ STO LAVORANDO SU UNA COPIA
+                for (String userName : users.keySet() ) // Posso fare un for-each perché non modifico la struttura
+                    // Creo una entry per ogni utente nella struttura contenente il risultato del calcolo delle ricompense
+                    rewardPerUser.put(userName, null);
+
+                for (String userName : users.keySet() ){
+                    // Posso fare un for-each perché non modifico la struttura, invece che aver bisogno di un iteratore
+                    // Accedo alla struttura in modalità lettura e ci pensa Java a sincronizzare (lock striping)
 
                     // Se nel frattempo qualche utente crea nuovi post?
                     // Le alternative sono due, semplicemente:
@@ -132,11 +134,12 @@ public class RewardCalculator implements Runnable{
                     // - lavoro su un puntatore sincronizzanto,
                     // In entrambi i casi possono avvenire operazioni di utenti attualmente non sincronizzati
                     // Potrei risolvere con una readlock su tutta la struttura
-                    user.lockUser.readLock().lock();
+                    
+                    // E INVECE LASCIO LA CONCORRENZA IN MANO ALLE API JAVA DELLA CONCURRENT HASHMAP E MI FIDO DELL'ITERATORE
 
                     // Per ogni utente calcolo la ricompensa
 
-                    for (WinsomePost post : database.getPostPerUser(user.getNickname())){
+                    for (WinsomePost post : database.getPostPerUser(userName)){
                         // Curatori del post tra i quali dividere la ricompensa
                         curators.clear();
                         rewPost = 0;
@@ -163,21 +166,19 @@ public class RewardCalculator implements Runnable{
                         }
                         
                         // Aggiorno le ricompense dell'utente con quelle calcolate sul post
-                        rewUpdate = rewardPerUser.get(user.getNickname());
+                        rewUpdate = rewardPerUser.get(userName);
                         rewUpdate += ( rewPost * config.percAuth );
-                        rewardPerUser.replace(user.getNickname(), rewUpdate);
+                        rewardPerUser.replace(userName, rewUpdate);
                     }
-                    user.lockUser.readLock().unlock();
                 }
                 // Ho calcolato le ricompense per tutti gli utenti
-                // Per aggiornare il portafoglio degli utenti devo accedere alla struttura in modalità scrittura
-                // E qui si ribadisce la necessità di una ReadWriteLock sul database degli utenti
-                for ( WinsomeUser user : users ){
-                    user.lockUser.writeLock().lock();
-                    user.updateReward(rewardPerUser.get(user.getNickname()));
-                    user.lockUser.writeLock().unlock();
+                // Per aggiornare il portafoglio degli utenti devo accedere alla struttura in modo concorrente
+                for ( String user : users.keySet() ){
+                    synchronized(user){
+                        // Sincronizzo perché il thread che fa il backup potrebbe leggere il portafoglio
+                        users.get(user).updateReward(rewardPerUser.get(user));
+                    }
                 }
-                database.lockUserDB.readLock().unlock();
 
                 // Invio la notifica che le ricompense sono state aggiorate
                 socket.send(packet);
