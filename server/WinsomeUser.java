@@ -1,9 +1,8 @@
 package server;
 
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import server.bcrypt.src.BCrypt;
 import shared.*;
@@ -15,7 +14,7 @@ import shared.*;
  * Struttura che rappresenta un utente winsome all'interno del SERVER
  * Nessun metodo potrà essere invocato direttamente dal client
 */
-public class WinsomeUser {
+public class WinsomeUser implements Serializable {
         
     private String nickname;
     private String psw;
@@ -60,7 +59,30 @@ public class WinsomeUser {
         this.tag.addAll(tags);
     }
 
+    /**
+     * Si ottiene la psw hashata dell'utente
+     * @return La psw per il login dell'utente
+     */
+    public String getPsw(){
+        // Gli oggetti String sono immutabili, quindi posso restituire il riferimento
+        return this.psw;
+    }
+
+    /**
+     * Si ottiene l'insieme dei tag associati all'utente
+     * @return Una deep copy dell'insieme dei tag dell'utente
+     */
+    public Set<String> getTags(){
+        // Restituisco una deep copy perché la struttura dei tag non deve poter essere modificata
+        return new HashSet<String>(this.tag);
+    }
+
+    /**
+     * Si ottiene il nickname dell'utente
+     * @return Il nickname dell'utente
+     */
     public String getNickname(){
+        // Gli oggetti String sono immutabili, quindi posso restituire il riferimento
         return this.nickname;
     }
 
@@ -165,12 +187,15 @@ public class WinsomeUser {
      * @param newReward Saldo da aggiungere al portafoglio
      * @throws IllegalArgumentException se newReward è minore di zero
      */
-    public void updateReward(double newReward)
+    public void updateReward(Double newReward)
     throws IllegalArgumentException {
-        if ( newReward < 0 )
+        if ( newReward == null )
+            this.wallet += 0;
+
+        if ( newReward.doubleValue() < 0 )
             throw new IllegalArgumentException();
 
-        this.wallet += newReward;
+        this.wallet += newReward.doubleValue();
     }
 
     /**

@@ -1,3 +1,7 @@
 {
-    "svn.ignoreMissingSvnWarning": true
+    "svn.ignoreMissingSvnWarning": true,
+    "java.project.referencedLibraries": [
+        "lib/**/*.jar",
+        "libs/gson-2.8.9.jar"
+    ]
 }

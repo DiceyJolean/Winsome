@@ -4,7 +4,6 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
@@ -100,10 +99,13 @@ public class RewardCalculator implements Runnable{
 
             double rewUpdate = 0;
             double rewPost = 0;
+            // Struttura che raccoglie i nomi dei curatori per ogni post
             Set<String> curators = new HashSet<String>();
+
             ConcurrentHashMap<String, WinsomeUser> users;
             // Raccolta delle ricompense per utente
             HashMap<String, Double> rewardPerUser = new HashMap<String, Double>();
+
             byte[] buf = ( new String("Nuove ricompense disponibili")).getBytes();
             DatagramPacket packet = new DatagramPacket(buf, buf.length, config.address, config.port);
 
@@ -116,15 +118,12 @@ public class RewardCalculator implements Runnable{
 
                 rewardPerUser.clear();
 
-                database.lockUserDB.readLock().lock(); // Blocco il database degli utenti in modalità lettura
                 // Ottengo la lista di tutti gli utenti
                 users = database.getUsers();
 
-                for (String userName : users.keySet() ) // Posso fare un for-each perché non modifico la struttura
-                    // Creo una entry per ogni utente nella struttura contenente il risultato del calcolo delle ricompense
-                    rewardPerUser.put(userName, null);
+                for (String userName : database.getUsers().keySet() ){
+                    rewardPerUser.put(userName, null); // Aggiungo l'utente alla struttura dati che raccoglie le ricompense
 
-                for (String userName : users.keySet() ){
                     // Posso fare un for-each perché non modifico la struttura, invece che aver bisogno di un iteratore
                     // Accedo alla struttura in modalità lettura e ci pensa Java a sincronizzare (lock striping)
 
@@ -160,6 +159,8 @@ public class RewardCalculator implements Runnable{
                     
                         for ( String curator : curators ){
                             // Per ogni curatore del post aggiorno la ricompensa totale
+                            rewardPerUser.putIfAbsent(curator, null);
+
                             rewUpdate = rewardPerUser.get(curator);
                             rewUpdate += ( rewPost * config.percCur ) / curators.size();
                             rewardPerUser.replace(curator, rewUpdate);
@@ -176,6 +177,8 @@ public class RewardCalculator implements Runnable{
                 for ( String user : users.keySet() ){
                     synchronized(user){
                         // Sincronizzo perché il thread che fa il backup potrebbe leggere il portafoglio
+                        // A questo punto potrebbero essere stati aggiunti altri utenti al database
+                        
                         users.get(user).updateReward(rewardPerUser.get(user));
                     }
                 }

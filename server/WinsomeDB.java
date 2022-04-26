@@ -1,10 +1,7 @@
 package server;
 
-import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Classe che rappresenta il database di Winsome,
@@ -15,12 +12,10 @@ public class WinsomeDB {
     private ConcurrentHashMap<Integer, WinsomePost> posts;
     // Qual è il senso di rendere la struttura concurrent se poi utilizzo le lock?
     private ConcurrentHashMap<String, WinsomeUser> users;
-    public ReadWriteLock lockUserDB;
 
     public WinsomeDB(){
         this.posts = new ConcurrentHashMap<Integer, WinsomePost>();
         this.users = new ConcurrentHashMap<String, WinsomeUser>();
-        this.lockUserDB = new ReentrantReadWriteLock();
     }
 
     // Restituisce una deep copy dei post pubblicati dall'utente

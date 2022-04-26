@@ -1,5 +1,6 @@
 package server;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import shared.NullArgumentException;
 
-public class WinsomePost{
+public class WinsomePost implements Serializable{
 
     private int idPost; // Id del post
     private String title; // Titolo del post
