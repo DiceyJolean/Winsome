@@ -9,10 +9,16 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import shared.*;
+import shared.NullArgumentException;
 
 // Classe che implementa il thread che periodicamente calcola le ricompense
 public class RewardCalculator implements Runnable{
+
+    private int period;
+    private int percAuth;
+    private int percCur;
+    private int port;
+    private InetAddress address;
 
     public class RewardCalculatorConfigurationException extends Exception{
 
@@ -25,60 +31,28 @@ public class RewardCalculator implements Runnable{
         }
     }
 
-    class ConfigRewardCalc{
-        private String host;
-        private InetAddress address;
-        private int port;
-        private int period; // Periodo di tempo ogni quanto il thread calcola le ricompense
-        private int percAuth; // Perchntuale di ricompensa che spetta all'autore del post
-        private int percCur; // Percentuale di ricompensa che spetta ai curatori del post
-        
-        // Restituire indietro un valore invece che propagare un'eccezione
-        boolean validate()
-        throws RewardCalculatorConfigurationException {
-
-            try {
-                address = InetAddress.getByName(config.host);
-            } catch ( UnknownHostException e ){
-                throw new RewardCalculatorConfigurationException("L'indirizzo IP dell'host non può essere determinato");
-            }
-
-            if ( !address.isMulticastAddress() ){
-                throw new RewardCalculatorConfigurationException("L'indirizzo IP non è un indirizzo di multicast");
-            }
-
-            if ( port < 1024 || port > 65535 )
-                throw new RewardCalculatorConfigurationException("Numero di porta non valido");
-
-            if ( period < 0 )
-                throw new RewardCalculatorConfigurationException("Il periodo per il calcolo delle ricompense è troppo breve");
-
-            if ( percAuth < 0 || percCur < 0 || ( percAuth + percCur ) != 1 )
-                throw new RewardCalculatorConfigurationException("Le percentuali di ricompensa per autore e curatori non sono valide");
-
-
-            return false;
-        }
-    }
-
-    ConfigRewardCalc config; // Parametri per la configurazione iniziale del thread
     private volatile boolean terminate = false; // Variabile per la terminazione del thread
     // Puntatore al DB dei post per poter richiedere la lista
     private WinsomeDB database;
     
-    public RewardCalculator(ConfigRewardCalc config, WinsomeDB db)
+    public RewardCalculator(int period, int percAuth, int port, String address, WinsomeDB db)
     throws RewardCalculatorConfigurationException, NullArgumentException {
         
-        if ( config == null || db == null )
+        if ( db == null )
             throw new NullArgumentException();
 
-        try {
-            config.validate();
-        } catch ( Exception e ){
+        this.period = period;
+        this.percAuth = percAuth;
+        this.percCur = 1 - percAuth;
+        this.port = port;
+        try{
+            this.address = InetAddress.getByName(address);
+            if ( !this.address.isMulticastAddress() )
+                throw new RewardCalculatorConfigurationException();
+        } catch ( UnknownHostException e ){
             throw new RewardCalculatorConfigurationException();
         }
-        
-        this.config = config;
+
         this.database = db;
 
     }
@@ -107,11 +81,10 @@ public class RewardCalculator implements Runnable{
             HashMap<String, Double> rewardPerUser = new HashMap<String, Double>();
 
             byte[] buf = ( new String("Nuove ricompense disponibili")).getBytes();
-            DatagramPacket packet = new DatagramPacket(buf, buf.length, config.address, config.port);
-
+            DatagramPacket packet = new DatagramPacket(buf, buf.length, address, port);
             while ( !terminate ){
                 try{
-                    Thread.sleep(config.period);
+                    Thread.sleep(period);
                 } catch ( InterruptedException e ){
                     // TODO Eccezione fatale
                 }
@@ -162,13 +135,13 @@ public class RewardCalculator implements Runnable{
                             rewardPerUser.putIfAbsent(curator, null);
 
                             rewUpdate = rewardPerUser.get(curator);
-                            rewUpdate += ( rewPost * config.percCur ) / curators.size();
+                            rewUpdate += ( rewPost * percCur ) / curators.size();
                             rewardPerUser.replace(curator, rewUpdate);
                         }
                         
                         // Aggiorno le ricompense dell'utente con quelle calcolate sul post
                         rewUpdate = rewardPerUser.get(userName);
-                        rewUpdate += ( rewPost * config.percAuth );
+                        rewUpdate += ( rewPost * percAuth );
                         rewardPerUser.replace(userName, rewUpdate);
                     }
                 }

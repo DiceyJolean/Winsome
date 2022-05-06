@@ -1,8 +1,15 @@
 package client;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -20,9 +27,135 @@ import java.util.Set;
     Fa controlli sulla validità della richiesta prima di inoltrarla al client
 */
 public class ClientMain {
+    private static final boolean DEBUG = true;
 
     private static final int MINTAGS = 1;
     private static final int MAXTAGS = 5;
+    private static String multicastAddress;
+    private static int multicastPort;
+    private static int tcpPort;
+    private static int rmiPort;
+    private static String rmiServiceName;
+    private static SocketChannel channel = null;
+
+    public static boolean register(String username, String password, Set<String> tags){
+        if ( DEBUG ){
+            String msg = new String("REGISTER\t username: " + username + ", password: " + password + ", tags: " + tags.toString());
+            System.out.println(msg);
+            ByteBuffer buf = ByteBuffer.wrap(msg.getBytes());
+            try {
+                channel.write(buf);
+            } catch ( Exception e ){
+                e.getMessage();
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static boolean login(String username, String password){
+        System.out.println("LOGIN\t username: " + username + ", password: " + password);
+        
+
+        return true;
+    }
+
+    public static boolean logout(String username){
+        System.out.println("LOGOUT\t username: " + username);
+
+        return true;
+    }
+
+    public static boolean listUsers(){
+        System.out.println("LIST_USERS");
+
+        return true;
+    }
+
+    public static boolean listFollowers(){
+        System.out.println("LIST_FOLLOWERS");
+
+        return true;
+    }
+
+    public static boolean listFollowing(){
+        System.out.println("LIST_FOLLOWING");
+
+        return true;
+    }
+
+    public static boolean followUser(String idUser){
+        System.out.println("FOLLOW_USER\t idUser: " + idUser);
+
+        return true;
+    }
+
+    public static boolean unfollow(String idUser){
+        System.out.println("UNFOLLOW\t idUSer: " + idUser);
+        
+        return true;
+    }
+
+    public static boolean viewBlog(){
+        System.out.println("VIEW_BLOG");
+
+        return true;
+    }
+
+    public static boolean createPost(String title, String content){
+        System.out.println("CREATE_POST\t title: " + title + ", content: " + content);
+
+        return true;
+    }
+
+    public static boolean showFeed(){
+        System.out.println("SHOW_FEED");
+
+        return true;
+    }
+
+    public static boolean showPost(int idPost){
+        System.out.println("SHOW_POST\t idPost: " + idPost);
+
+        return true;
+    }
+
+    public static boolean deletePost(int idPost){
+        System.out.println("DELETE_POST\t idPost: " + idPost);
+
+        return true;
+    }
+
+    public static boolean rewinPost(int idPost){
+        System.out.println("REWIN_POST\t idPost: " + idPost);
+
+        return true;
+    }
+
+    public static boolean ratePost(int idPost, int vote){
+        System.out.println("RATE_POST\t idPost: " + idPost + ", vote: " + vote);
+
+        return true;
+    }
+
+    public static boolean addComment(int idPost, String content){
+        System.out.println("ADD_COMMENT\t idPost: " + idPost + ", content: " + content);
+
+        return true;
+    }
+
+    public static boolean getWallet(){
+        System.out.println("GET_WALLET");
+
+        return true;
+    }
+
+    public static boolean getWalletBitcoin(){
+        System.out.println("GET_WALLET_BITCOIN");
+
+        return true;
+        }    
 
     public static void helpMessage(){
         System.out.println(
@@ -51,9 +184,70 @@ public class ClientMain {
     public static void main(String[] args){
         String thisUser = null; // Nick dell'utente che si logga utilizzando questo client
 
+        // Leggo i parametri per la configurazione iniziale dal file passato come argomento
+        File configFile = new File(args[0]);
+        if ( !configFile.exists() || !configFile.isFile() ){
+            // TODO terminazione
+            System.exit(1);
+        }
+
+        try (
+            BufferedReader input = new BufferedReader(new FileReader(configFile))
+        ){
+            for ( String line = input.readLine(); line != null; line = input.readLine() ){
+                String[] token = line.split("=");
+
+                switch ( token[0] ){
+                    case "MULTICAST_ADDRESS":{
+                        multicastAddress = new String(token[1]);
+                        break;
+                    }
+                    case "MULTICAST_PORT":{
+                        multicastPort = Integer.parseInt(token[1]);
+                        if ( multicastPort < 1024 || multicastPort > 65535 )
+                            System.exit(1);
+                        break;
+                    }
+                    case "TCP_PORT":{
+                        tcpPort = Integer.parseInt(token[1]);
+                        if ( tcpPort < 1024 || tcpPort > 65535 )
+                            System.exit(1);
+                        break;
+                    }
+                    default:{
+                        break;
+                    }
+                }
+            }
+        } catch ( Exception e ){
+            // TODO terminazione
+            e.getMessage();
+            System.exit(1);
+        }
+        if ( DEBUG ){
+            System.out.println("CLIENT: Provo a  connettermi sulla porta " + tcpPort + "\n");
+        }
+
+        try{
+            SocketAddress address = new InetSocketAddress(tcpPort);
+            channel = SocketChannel.open();
+            channel.connect(address);
+        
+        } catch ( Exception e ){
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            try {
+                channel.close();
+            } catch ( Exception ex ){
+                System.exit(1);
+            }
+            System.exit(1);
+        }
+
         try (
             BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
         ){
+            // Ciclo per parsare le richieste in ingresso
             for (String line = input.readLine(); !line.equals("quit"); line = input.readLine()){
                 String[] req = line.split(" ");
 
@@ -70,7 +264,7 @@ public class ClientMain {
                         for ( int i = 3; i < req.length; i++ )
                             tags.add(req[i]);
 
-                        API.register(nickname, psw, tags);
+                        register(nickname, psw, tags);
                         break;
                     }
                     case "login":{
@@ -81,7 +275,7 @@ public class ClientMain {
                         thisUser = new String(req[1]);
                         String psw = new String(req[2]);
                         
-                        API.login(thisUser, psw);
+                        login(thisUser, psw);
                         break;
                     }
                     case "logout":{
@@ -90,7 +284,7 @@ public class ClientMain {
                             break;
                         }
 
-                        API.logout(thisUser);
+                        logout(thisUser);
                         thisUser = null;
                         break;
                     }
@@ -105,7 +299,7 @@ public class ClientMain {
                         for ( int i = 3; i < req.length; i++ )
                             content.append(req[i] + " ");
                             
-                        API.createPost(title, content.toString());
+                        createPost(title, content.toString());
                         break;
                     }
                     case "comment":{
@@ -119,7 +313,7 @@ public class ClientMain {
                             for ( int i = 3; i < req.length; i++ )
                                 content.append(req[i] + " ");
                                                             
-                            API.addComment(idPost, content.toString());
+                            addComment(idPost, content.toString());
                             break;
 
                         } catch ( NumberFormatException e ){
@@ -149,7 +343,7 @@ public class ClientMain {
                                     break;
                                 }
                             }
-                            API.ratePost(idPost, vote);
+                            ratePost(idPost, vote);
                             break;
                             
                         } catch ( NumberFormatException e ){
@@ -160,12 +354,12 @@ public class ClientMain {
                     case "wallet":{
                         if ( req.length == 1 ){
                             // wallet
-                            API.getWallet();
+                            getWallet();
                             break;
                         }
                         if ( req[1].equals("btc") && req.length == 2 ){
                             // wallet btc
-                            API.getWalletBitcoin();
+                            getWalletBitcoin();
                             break;
                         }
                         // Nessuna delle due, vuol dire che la richiesta è stata formulata in modo scorretto
@@ -179,15 +373,15 @@ public class ClientMain {
                         }
                         switch ( req[1] ){
                             case "followers":{
-                                API.listFollowers();
+                                listFollowers();
                                 break;
                             }
                             case "users":{
-                                API.listUsers();
+                                listUsers();
                                 break;
                             }
                             case "following":{
-                                API.listFollowing();
+                                listFollowing();
                                 break;
                             }
                             default:{
@@ -204,7 +398,7 @@ public class ClientMain {
                         }
                         switch( req[1] ){
                             case "feed":{
-                                API.showFeed();
+                                showFeed();
                                 break;
                             }
                             case "post":{
@@ -215,7 +409,7 @@ public class ClientMain {
                                 try{
                                     int idPost = Integer.parseInt(req[2]);
 
-                                    API.showPost(idPost);
+                                    showPost(idPost);
                                     break;
                                 } catch ( NumberFormatException e ){
                                     helpMessage();
@@ -238,7 +432,7 @@ public class ClientMain {
                         try{
                             int idPost = Integer.parseInt(req[2]);
 
-                            API.deletePost(idPost);
+                            deletePost(idPost);
                             break;
                         } catch ( NumberFormatException e ){
                             helpMessage();
@@ -254,7 +448,7 @@ public class ClientMain {
                         try{
                             int idPost = Integer.parseInt(req[2]);
 
-                            API.rewinPost(idPost);
+                            rewinPost(idPost);
                             break;
                         } catch ( NumberFormatException e ){
                             helpMessage();
@@ -262,7 +456,7 @@ public class ClientMain {
                         }
                     }
                     case "blog":{
-                        API.viewBlog();
+                        viewBlog();
                         break;
                     }
                     case "follow":{
@@ -272,7 +466,7 @@ public class ClientMain {
                         }
                         String user = new String(req[1]);
 
-                        API.followUser(user);
+                        followUser(user);
                         break;
                     }
                     case "unfollow":{
@@ -282,7 +476,7 @@ public class ClientMain {
                         }
                         String user = new String(req[1]);
 
-                        API.unfollow(user);
+                        unfollow(user);
                         break;
                     }
                     default:{
@@ -300,5 +494,7 @@ public class ClientMain {
         }
 
     }
+
+    
 
 }
