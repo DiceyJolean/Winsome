@@ -165,6 +165,14 @@ public class WinsomeUser implements Serializable {
         return this.blog.add(post);
     }
 
+    // REstituisce una copia dei follower di questo utente
+    public Set<String> getFollower(){
+        Set<String> copy = new HashSet<String>();
+        this.follower.addAll(copy);
+
+        return copy;
+    }
+
     /** 
      * Effettua il logout dell'utente
     */

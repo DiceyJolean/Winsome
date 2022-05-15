@@ -10,10 +10,14 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.Iterator;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+
+import shared.*;
 
 // import server.RewardCalculator.RewardCalculatorConfigurationException;
 // import shared.*;
@@ -23,7 +27,7 @@ public class ServerMainNIO {
     private static boolean DEBUG = true;
     private static final int KILOBYTE = 1024;
     
-    // private static WinsomeDB database;
+    private static WinsomeDB database;
     // private static PersistentState state;
     private static String multicastAddress = null;
     private static int multicastPort = -1;
@@ -120,6 +124,9 @@ public class ServerMainNIO {
         }
         
         if ( DEBUG ) System.out.println("SERVER: Parametri di configurazione corretti");
+
+        // TODO creare un database temporaneo per eseguire i test
+        
         /*
         state.loadWinsomeState(database);
         RewardCalculator rewardCalculator = null;
@@ -136,8 +143,20 @@ public class ServerMainNIO {
         rewardCalculator.run();
         */
         if ( DEBUG ) System.out.println("SERVER: RewardCalculator avviato");
-        
-        ExecutorService pool = Executors.newCachedThreadPool();
+
+        // Preparazione del servizio rmi
+        try {
+            WinsomeRMIService serviceRMI = new WinsomeRMIService(database);
+            RMIServiceInterface stub = ( RMIServiceInterface ) UnicastRemoteObject.exportObject(serviceRMI, 0);
+            LocateRegistry.createRegistry(rmiPort);
+            Registry r = LocateRegistry.getRegistry(rmiPort);
+            r.rebind(rmiServiceName, stub);
+
+            if ( DEBUG ) System.out.println("Server: Servizio RMI pronto su (" + rmiServiceName + ", " + rmiPort + ")\n");
+        } catch ( RemoteException e ){
+            e.printStackTrace();
+            System.exit(1);
+        }
 
         ServerSocketChannel serverSocketChannel;
         Selector selector = null;
@@ -155,6 +174,7 @@ public class ServerMainNIO {
             System.exit(1);
         }
 
+        // Ciclo principale in cui il server esegue le richieste dei client
         while(true){ // Termina con interruzione da terminale
             try{
                 if ( DEBUG) System.out.printf("SERVER: In attesa di nuove richieste sulla porta %d\n", tcpPort);
@@ -186,19 +206,17 @@ public class ServerMainNIO {
                         client.register(selector, SelectionKey.OP_READ);
                     }
                     else if ( key.isReadable() ){
-                        // "zittisco" il client finché il worker non ha finito di servirlo
-                        // Sarà poi il worker a reinsere la chiave
-                        // key.cancel();
                         
                         SocketChannel client = (SocketChannel) key.channel();
                         String msg = ( String ) key.attachment();
                         client.configureBlocking(false);
 
-                        if ( DEBUG ) System.out.println("SERVER: Provo a leggere cosa mi ha inviato un client\n");
+                        if ( DEBUG ) System.out.println("SERVER: Provo a leggere cosa mi ha inviato un client");
                         ByteBuffer buffer = ByteBuffer.allocate(KILOBYTE);
                         buffer.clear();
 
                         int byteRead = client.read(buffer);
+                        if ( DEBUG ) System.out.println("SERVER: Leggo "+ byteRead + " bytes dal client");
 
                         buffer.flip();
                         if ( msg == null )
@@ -206,34 +224,32 @@ public class ServerMainNIO {
                         else
                             msg = msg + StandardCharsets.UTF_8.decode(buffer).toString();
                         
-
                         if ( byteRead == KILOBYTE ){
                             // Ho riempito il buffer, potrei non aver letto tutto
                             key.attach(msg);
-                            if ( DEBUG ) System.out.println("SERVER: Lettura incompleta, compongo il messaggio al ciclo successivo\n");
-                        }
-                        else if ( byteRead < KILOBYTE ){
-                            // Ho letto tutto quello che il client ha inviato al server
-                            if ( DEBUG ) System.out.println("SERVER: Leggo una richiesta dal client:\n\t"+ msg +"\n");
-
-                            key.interestOps(SelectionKey.OP_WRITE);
+                            if ( DEBUG ) System.out.println("SERVER: Lettura incompleta, compongo il messaggio al ciclo successivo, per ora ho letto \""+ msg +"\"");
                         }
                         else if ( byteRead == -1 ){
                             key.cancel();
                             key.channel().close();
                             if ( DEBUG ) System.out.println("SERVER: Socket chiusa dal client\n");
                         }
-                        // Worker worker = new Worker(client, selector, "OP_READ");
-                        // pool.execute(worker);
+                        else if ( byteRead < KILOBYTE ){
+                            // Ho letto tutto quello che il client ha inviato al server
+                            if ( DEBUG ) System.out.println("SERVER: Leggo \""+ msg +"\" dal client");
+                            // Elaboro la richiesta
+                            // Metto la risposta nell'attachment
+
+
+                            key.interestOps(SelectionKey.OP_WRITE);
+                            
+                        }
                     }
                     else if ( key.isWritable() ){
-                        // "zittisco" il client finché il worker non ha finito di servirlo
-                        // Sarà poi il worker a reinsere la chiave
-                        // key.cancel();
                         
                         SocketChannel client = (SocketChannel) key.channel();
-                        String msg = ( String ) key.attachment();
-                        // TODO a msg dovrò appendere il resto del messaggio
+                        String msg = new String("200\nOK\n");
+                        
                         client.configureBlocking(false);
 
                         if ( DEBUG ) System.out.println("SERVER: Provo a scrivere a un client\n");
@@ -242,13 +258,9 @@ public class ServerMainNIO {
 
                         if ( byteWrote == msg.length() ){
                             // Ho scritto tutto
-                            if ( DEBUG ) System.out.println("SERVER: Ho inviato un messaggio al client\n");
+                            if ( DEBUG ) System.out.println("SERVER: Ho inviato \"" + msg + "\" al client\n");
                             key.interestOps(SelectionKey.OP_READ);                            
                         }
-                        
-
-                        // Worker worker = new Worker(client, selector, "OP_WRITE");
-                        // pool.execute(worker);
                     }
                 } catch ( Exception e ){
                     key.cancel();

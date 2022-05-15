@@ -1,18 +1,21 @@
 package client;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.HashSet;
 import java.util.Set;
 
+import shared.*;
 /**
  * Il parser potrebbe essere un thread avviato dal client dopo aver
  * settato i parametri di configurazione ed essersi collegato.
@@ -28,159 +31,19 @@ import java.util.Set;
 */
 public class ClientMain {
     private static final boolean DEBUG = true;
-
     private static final int MINTAGS = 1;
     private static final int MAXTAGS = 5;
-    private static String multicastAddress;
-    private static int multicastPort;
-    private static int tcpPort;
-    private static int rmiPort;
-    private static String rmiServiceName;
-    private static SocketChannel channel = null;
 
-    public static boolean register(String username, String password, Set<String> tags){
-        if ( DEBUG ){
-            String msg = new String("REGISTER\t username: " + username + ", password: " + password + ", tags: " + tags.toString());
-            System.out.println(msg);
-            ByteBuffer buf = ByteBuffer.wrap(msg.getBytes());
-            try {
-                channel.write(buf);
-            } catch ( Exception e ){
-                e.getMessage();
-                return false;
-            }
-        }
+    private static Socket serverSocket = null;
+    private static int rmiPort = 0;
+    private static String rmiServiceName = null;
 
-        return true;
-    }
+    private static String thisUser = null;
+    private static boolean logged = false;
+    private static BufferedReader in;
+    private static PrintWriter out;
+    private static Set<String> followers = null;
 
-    public static boolean login(String username, String password){
-        System.out.println("LOGIN\t username: " + username + ", password: " + password);
-        
-
-        return true;
-    }
-
-    public static boolean logout(String username){
-        System.out.println("LOGOUT\t username: " + username);
-
-        return true;
-    }
-
-    public static boolean listUsers(){
-        System.out.println("LIST_USERS");
-
-        return true;
-    }
-
-    public static boolean listFollowers(){
-        System.out.println("LIST_FOLLOWERS");
-
-        return true;
-    }
-
-    public static boolean listFollowing(){
-        System.out.println("LIST_FOLLOWING");
-
-        return true;
-    }
-
-    public static boolean followUser(String idUser){
-        System.out.println("FOLLOW_USER\t idUser: " + idUser);
-
-        return true;
-    }
-
-    public static boolean unfollow(String idUser){
-        System.out.println("UNFOLLOW\t idUSer: " + idUser);
-        
-        return true;
-    }
-
-    public static boolean viewBlog(){
-        System.out.println("VIEW_BLOG");
-
-        return true;
-    }
-
-    public static boolean createPost(String title, String content){
-        System.out.println("CREATE_POST\t title: " + title + ", content: " + content);
-
-        return true;
-    }
-
-    public static boolean showFeed(){
-        System.out.println("SHOW_FEED");
-
-        return true;
-    }
-
-    public static boolean showPost(int idPost){
-        System.out.println("SHOW_POST\t idPost: " + idPost);
-
-        return true;
-    }
-
-    public static boolean deletePost(int idPost){
-        System.out.println("DELETE_POST\t idPost: " + idPost);
-
-        return true;
-    }
-
-    public static boolean rewinPost(int idPost){
-        System.out.println("REWIN_POST\t idPost: " + idPost);
-
-        return true;
-    }
-
-    public static boolean ratePost(int idPost, int vote){
-        System.out.println("RATE_POST\t idPost: " + idPost + ", vote: " + vote);
-
-        return true;
-    }
-
-    public static boolean addComment(int idPost, String content){
-        System.out.println("ADD_COMMENT\t idPost: " + idPost + ", content: " + content);
-
-        return true;
-    }
-
-    public static boolean getWallet(){
-        System.out.println("GET_WALLET");
-
-        return true;
-    }
-
-    public static boolean getWalletBitcoin(){
-        System.out.println("GET_WALLET_BITCOIN");
-
-        return true;
-        }    
-
-    public static void helpMessage(){
-        System.out.println(
-            "\nregister <username> <password> <tags>:\t Effettua la registrazione dell'utente" +
-            "\nlogin <username> <password>:\t\t Effettua il login dell'utente" +
-            "\nlogout:\t\t\t\t\t Effettua il logout dell'utente" +
-            "\nlist users:\t\t\t\t Restituisce gli utenti che hanno almeno un tag in comune" +
-            "\nlist followers:\t\t\t\t Restituisce la lista dei follower" +
-            "\nlist following:\t\t\t\t Restituisce la lista degli utenti seguiti" +
-            "\nfollow <username>:\t\t\t Permette di seguire un utente" +
-            "\nunfollow <username>:\t\t\t Permette di smettere di seguire un utente" +
-            "\nblog:\t\t\t\t\t Visualizza i post di cui l'utente è autore" +
-            "\npost <title> <content>:\t\t\t Crea un post" +
-            "\nshow feed:\t\t\t\t Visualizza il feed dell'utente" +
-            "\nshow post <id>:\t\t\t\t Visualizza il post" +
-            "\ndelete <idPost>:\t\t\t Elimina il post" +
-            "\nrewin <idPost>:\t\t\t\t Effettua il rewin del post" +
-            "\nrate <idPost> <vote>:\t\t\t Aggiunge un voto al post" +
-            "\ncomment <idPost> <comment>:\t\t Aggiunge un commento al post" +
-            "\nwallet:\t\t\t\t\t Visualizza il portafoglio dell'utente" +
-            "\nwallet btc:\t\t\t\t Visualizza il portafoglio dell'utente in bitcoin" +
-            "\nhelp:\t\t\t\t\t Visualizza questo messaggio"
-        );
-    }
-    
     public static void main(String[] args){
         String thisUser = null; // Nick dell'utente che si logga utilizzando questo client
 
@@ -191,6 +54,11 @@ public class ClientMain {
             System.exit(1);
         }
 
+        String multicastAddress = null;
+        int multicastPort = 0;
+        int tcpPort = 0;
+
+        // Lettura dei parametri iniziali
         try (
             BufferedReader input = new BufferedReader(new FileReader(configFile))
         ){
@@ -228,29 +96,27 @@ public class ClientMain {
             System.out.println("CLIENT: Provo a  connettermi sulla porta " + tcpPort + "\n");
         }
 
+        // Apertura della connessione TCP con il server
+        InetAddress address = null;
         try{
-            SocketAddress address = new InetSocketAddress(tcpPort);
-            channel = SocketChannel.open();
-            channel.connect(address);
-        
+            address = InetAddress.getLocalHost();
+            serverSocket = new Socket(address, tcpPort);
+            out = new PrintWriter( serverSocket.getOutputStream() );
+            in = new BufferedReader( new InputStreamReader( serverSocket.getInputStream() ));
         } catch ( Exception e ){
-            System.err.println(e.getMessage());
             e.printStackTrace();
-            try {
-                channel.close();
-            } catch ( Exception ex ){
-                System.exit(1);
-            }
             System.exit(1);
         }
-
+        
+        // Parsing delle richieste da riga di comando
         try (
             BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
         ){
             // Ciclo per parsare le richieste in ingresso
             for (String line = input.readLine(); !line.equals("quit"); line = input.readLine()){
                 String[] req = line.split(" ");
-
+                
+                // Controllo soltanto i parametri in ingresso, il resto viene svolto all'interno del metodo corrispondente
                 switch ( req[0] ){
                     case "register":{
                         // Mi aspetto da uno a cinque tag
@@ -260,11 +126,13 @@ public class ClientMain {
                         }
                         String nickname = new String(req[1]);
                         String psw = new String(req[2]);
+
                         Set<String> tags = new HashSet<>(req.length - 3);
                         for ( int i = 3; i < req.length; i++ )
                             tags.add(req[i]);
 
                         register(nickname, psw, tags);
+                        
                         break;
                     }
                     case "login":{
@@ -486,7 +354,7 @@ public class ClientMain {
                 }
             }
             System.out.println("Chiusura del client");
-
+            serverSocket.close();
 
         } catch ( IOException e ){
             System.err.println(e.getMessage());
@@ -495,6 +363,164 @@ public class ClientMain {
 
     }
 
-    
+    public static boolean register(String username, String password, Set<String> tags){
+        if ( !username.equals(thisUser) )
+            // Voglio evitare inconsistenze
+            return false;
+        
+        // Mi registro a Winsome tramite RMI
+        try{
+            Registry registry = LocateRegistry.getRegistry(rmiPort);
+            RMIServiceInterface serviceRMI = ( RMIServiceInterface ) registry.lookup(rmiServiceName);
 
+            return serviceRMI.register(username, password, tags);
+
+        } catch ( RemoteException e ){
+            // Errore del client (non dell'utente), è ragionevole terminare TODO
+            return false;
+        } catch ( NotBoundException e ){
+            // Errore del server (non dell'utente), è ragionevole terminare TODO
+            return false;
+        }
+
+    }
+
+    public static boolean login(String username, String password){
+        System.out.println("LOGIN\t username: " + username + ", password: " + password);
+        if ( !username.equals(thisUser) )
+            // Voglio evitare inconsistenze
+            return false;
+        
+        if ( logged )
+            // Questo utente ha già effettuato il login (con questo client)
+            return false;
+
+        // La fase di login viene fatta tramite connessione TCP
+
+
+        
+        
+
+        return true;
+    }
+
+    public static boolean logout(String username){
+        System.out.println("LOGOUT\t username: " + username);
+
+        return true;
+    }
+
+    public static boolean listUsers(){
+        System.out.println("LIST_USERS");
+
+        return true;
+    }
+
+    public static boolean listFollowers(){
+        System.out.println("LIST_FOLLOWERS");
+
+        return true;
+    }
+
+    public static boolean listFollowing(){
+        System.out.println("LIST_FOLLOWING");
+
+        return true;
+    }
+
+    public static boolean followUser(String idUser){
+        System.out.println("FOLLOW_USER\t idUser: " + idUser);
+
+        return true;
+    }
+
+    public static boolean unfollow(String idUser){
+        System.out.println("UNFOLLOW\t idUSer: " + idUser);
+        
+        return true;
+    }
+
+    public static boolean viewBlog(){
+        System.out.println("VIEW_BLOG");
+
+        return true;
+    }
+
+    public static boolean createPost(String title, String content){
+        System.out.println("CREATE_POST\t title: " + title + ", content: " + content);
+
+        return true;
+    }
+
+    public static boolean showFeed(){
+        System.out.println("SHOW_FEED");
+
+        return true;
+    }
+
+    public static boolean showPost(int idPost){
+        System.out.println("SHOW_POST\t idPost: " + idPost);
+
+        return true;
+    }
+
+    public static boolean deletePost(int idPost){
+        System.out.println("DELETE_POST\t idPost: " + idPost);
+
+        return true;
+    }
+
+    public static boolean rewinPost(int idPost){
+        System.out.println("REWIN_POST\t idPost: " + idPost);
+
+        return true;
+    }
+
+    public static boolean ratePost(int idPost, int vote){
+        System.out.println("RATE_POST\t idPost: " + idPost + ", vote: " + vote);
+
+        return true;
+    }
+
+    public static boolean addComment(int idPost, String content){
+        System.out.println("ADD_COMMENT\t idPost: " + idPost + ", content: " + content);
+
+        return true;
+    }
+
+    public static boolean getWallet(){
+        System.out.println("GET_WALLET");
+
+        return true;
+    }
+
+    public static boolean getWalletBitcoin(){
+        System.out.println("GET_WALLET_BITCOIN");
+
+        return true;
+        }    
+
+    public static void helpMessage(){
+        System.out.println(
+            "\nregister <username> <password> <tags>:\t Effettua la registrazione dell'utente" +
+            "\nlogin <username> <password>:\t\t Effettua il login dell'utente" +
+            "\nlogout:\t\t\t\t\t Effettua il logout dell'utente" +
+            "\nlist users:\t\t\t\t Restituisce gli utenti che hanno almeno un tag in comune" +
+            "\nlist followers:\t\t\t\t Restituisce la lista dei follower" +
+            "\nlist following:\t\t\t\t Restituisce la lista degli utenti seguiti" +
+            "\nfollow <username>:\t\t\t Permette di seguire un utente" +
+            "\nunfollow <username>:\t\t\t Permette di smettere di seguire un utente" +
+            "\nblog:\t\t\t\t\t Visualizza i post di cui l'utente è autore" +
+            "\npost <title> <content>:\t\t\t Crea un post" +
+            "\nshow feed:\t\t\t\t Visualizza il feed dell'utente" +
+            "\nshow post <id>:\t\t\t\t Visualizza il post" +
+            "\ndelete <idPost>:\t\t\t Elimina il post" +
+            "\nrewin <idPost>:\t\t\t\t Effettua il rewin del post" +
+            "\nrate <idPost> <vote>:\t\t\t Aggiunge un voto al post" +
+            "\ncomment <idPost> <comment>:\t\t Aggiunge un commento al post" +
+            "\nwallet:\t\t\t\t\t Visualizza il portafoglio dell'utente" +
+            "\nwallet btc:\t\t\t\t Visualizza il portafoglio dell'utente in bitcoin" +
+            "\nhelp:\t\t\t\t\t Visualizza questo messaggio"
+        );
+    }
 }
