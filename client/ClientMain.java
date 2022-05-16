@@ -38,15 +38,15 @@ public class ClientMain {
     private static int rmiPort = 0;
     private static String rmiServiceName = null;
 
-    private static String thisUser = null;
+    private static String thisUser = null; // Nick dell'utente che si logga utilizzando questo client
     private static boolean logged = false;
     private static BufferedReader in;
     private static PrintWriter out;
     private static Set<String> followers = null;
+    private static RMIServiceInterface serviceRMI;
+    private static ClientNotify stub;
 
     public static void main(String[] args){
-        String thisUser = null; // Nick dell'utente che si logga utilizzando questo client
-
         // Leggo i parametri per la configurazione iniziale dal file passato come argomento
         File configFile = new File(args[0]);
         if ( !configFile.exists() || !configFile.isFile() ){
@@ -80,6 +80,16 @@ public class ClientMain {
                         tcpPort = Integer.parseInt(token[1]);
                         if ( tcpPort < 1024 || tcpPort > 65535 )
                             System.exit(1);
+                        break;
+                    }
+                    case "RMI_PORT":{
+                        rmiPort = Integer.parseInt(token[1]);
+                        if ( rmiPort < 1024 || rmiPort > 65535 )
+                            System.exit(1);
+                        break;
+                    }
+                    case "RMI_NAME_SERVICE":{
+                        rmiServiceName = new String(token[1]);
                         break;
                     }
                     default:{
@@ -131,7 +141,13 @@ public class ClientMain {
                         for ( int i = 3; i < req.length; i++ )
                             tags.add(req[i]);
 
-                        register(nickname, psw, tags);
+                        if ( register(nickname, psw, tags) ){
+                            if ( DEBUG ) System.out.println("CLIENT: Registrazione a Winsome avvenuta con successo");
+                        }
+                        else {
+                            // TODO errore durante la fase di registrazione
+                            System.err.println("CLIENT: Errore durante la fase di registrazione");
+                        }
                         
                         break;
                     }
@@ -140,20 +156,43 @@ public class ClientMain {
                             helpMessage();
                             break;
                         }
+                        /*  Il client viene "associato" a un utente al momento del login
+                            Più utenti possono registrarsi a Winsome sullo stesso client
+                        */
+                        /*  TODO controllare che sia coerente con il resto dell'implementazione
+                            Dovrebbe esserlo, infatti la register aggiunge un nuovo utente a Winsome
+                            ma solo la login lo registra al servizio di callback
+                        */
+
                         thisUser = new String(req[1]);
                         String psw = new String(req[2]);
                         
-                        login(thisUser, psw);
+                        if ( login(thisUser, psw) ){
+                            if ( DEBUG ) System.out.println("CLIENT: login effettuato con successo");
+                        }
+                        else{
+                            // TODO errore nel login
+                            System.err.println("CLIENT: Errore durante la fase di login");
+                        }
                         break;
                     }
                     case "logout":{
+                        // Qui si effettuano solo i controlli sui dati in ingresso
+                        /*
+                        Questa roba spetta alla funzione relatiiva
                         if ( thisUser == null ){
                             // TODO messaggio di errore
                             break;
                         }
-
-                        logout(thisUser);
-                        thisUser = null;
+                        */
+                        if ( logout(thisUser) ){
+                            if ( DEBUG ) System.out.println("CLIENT: logout effettuato con successo");
+                            
+                        }
+                        else {
+                            // TODO errore nel logout
+                            System.err.println("CLIENT: Errore durante la fase di logout");
+                        }
                         break;
                     }
                     case "post":{
@@ -364,17 +403,16 @@ public class ClientMain {
     }
 
     public static boolean register(String username, String password, Set<String> tags){
-        if ( !username.equals(thisUser) )
-            // Voglio evitare inconsistenze
-            return false;
+        // Non controllo che username sia uguale a thisUser perché posso registrare più utenti, poi soltanto uno si loggherà
         
         // Mi registro a Winsome tramite RMI
         try{
             Registry registry = LocateRegistry.getRegistry(rmiPort);
-            RMIServiceInterface serviceRMI = ( RMIServiceInterface ) registry.lookup(rmiServiceName);
+            serviceRMI = ( RMIServiceInterface ) registry.lookup(rmiServiceName);
+            stub = new ClientNotify(username);
+            if ( DEBUG ) System.out.println("CLIENT: Mi iscrivo a Winsome");
 
             return serviceRMI.register(username, password, tags);
-
         } catch ( RemoteException e ){
             // Errore del client (non dell'utente), è ragionevole terminare TODO
             return false;
@@ -382,30 +420,59 @@ public class ClientMain {
             // Errore del server (non dell'utente), è ragionevole terminare TODO
             return false;
         }
+        catch ( Exception e ){
+            e.printStackTrace();
+            return false;
+        }
 
     }
 
     public static boolean login(String username, String password){
         System.out.println("LOGIN\t username: " + username + ", password: " + password);
-        if ( !username.equals(thisUser) )
-            // Voglio evitare inconsistenze
-            return false;
-        
-        if ( logged )
+        if ( thisUser == null || logged )
             // Questo utente ha già effettuato il login (con questo client)
             return false;
 
         // La fase di login viene fatta tramite connessione TCP
-
-
         
-        
+        logged = true;
+        thisUser = username;
+
+        // Finita la fase di login su Winsome, il client si registra al servizio di callback
+        try{
+            followers = serviceRMI.registerForCallback(stub);
+            if ( DEBUG ) System.out.println("CLIENT: Mi registro al servizio di notifica");
+            if ( DEBUG ) System.out.println("CLIENT: I miei follower sono: " + followers.toString());
+        } catch (RemoteException e ){
+            e.printStackTrace();
+            return false;
+        }
 
         return true;
     }
 
     public static boolean logout(String username){
         System.out.println("LOGOUT\t username: " + username);
+        if ( !username.equals(thisUser) )
+            // Voglio evitare inconsistenze, vale anche nel caso in cui thisUser sia null
+            return false;
+        
+        if ( !logged )
+            // Questo utente non aveva effettuato il login (con questo client)
+            return false;
+
+        // La fase di logout viene fatta tramite connessione TCP
+
+
+        logged = false;
+        thisUser = null;
+        // Finita la fase di login su Winsome, il client si registra al servizio di callback
+        try{
+            serviceRMI.unregisterForCallback(stub);
+            if ( DEBUG ) System.out.println("CLIENT: Mi cancello dal servizio di notifica");
+        } catch (RemoteException e ){
+            return false;
+        }
 
         return true;
     }
@@ -418,6 +485,7 @@ public class ClientMain {
 
     public static boolean listFollowers(){
         System.out.println("LIST_FOLLOWERS");
+        System.out.println(followers.toString());
 
         return true;
     }

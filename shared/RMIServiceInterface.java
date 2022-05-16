@@ -18,16 +18,7 @@ public interface RMIServiceInterface extends Remote {
     public abstract boolean register(String username, String password, Set<String> tags)
     throws RemoteException;
 
-    /**
-     * Al momento del login, il client si registra al servizio per ricevere
-     * una notifica quando un utente segue o smette di seguire l'utente che
-     * si è loggato con questo client
-     * 
-     * @param user L'utente che si è loggato
-     * @return L'insieme dei follower che attualmente ha l'utente che si è loggato, null è un valore valido
-     * @throws RemoteException
-     */
-    public abstract Set<String> registerForCallback(String user)
+    public abstract Set<String> registerForCallback(ClientNotifyInterface user)
     throws RemoteException;
 
     /**
@@ -37,7 +28,7 @@ public interface RMIServiceInterface extends Remote {
      * @return true se l'operazione è andata a buon fine, false altrimenti
      * @throws RemoteException
      */
-    public abstract boolean unregisterForCallback(String user)
+    public abstract boolean unregisterForCallback(ClientNotifyInterface user)
     throws RemoteException;
 
     /**

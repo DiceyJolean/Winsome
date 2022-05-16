@@ -18,6 +18,13 @@ public class WinsomeDB {
         this.users = new ConcurrentHashMap<String, WinsomeUser>();
     }
 
+    public boolean addUser(WinsomeUser user){
+        if ( users.putIfAbsent(user.getNickname(), user) == null )
+            return false;
+
+        return true;
+    }
+
     // Restituisce una deep copy dei post pubblicati dall'utente
     public Set<WinsomePost> getPostPerUser(String user){
         // La get su users è threadsafe e getPosts restituisce una deep copy

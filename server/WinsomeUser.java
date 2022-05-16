@@ -259,4 +259,8 @@ public class WinsomeUser implements Serializable {
         return new HashSet<WinsomePost>(this.blog);
     }
 
+    @Override public String toString(){
+        return this.nickname + " " + this.psw + " " + tag.toString();
+    }
+
 }

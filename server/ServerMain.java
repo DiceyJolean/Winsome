@@ -22,7 +22,7 @@ import shared.*;
 // import server.RewardCalculator.RewardCalculatorConfigurationException;
 // import shared.*;
 
-public class ServerMainNIO {
+public class ServerMain {
 
     private static boolean DEBUG = true;
     private static final int KILOBYTE = 1024;
@@ -41,7 +41,7 @@ public class ServerMainNIO {
     public static void main (String[] args){
 
         // Leggo i parametri per la configurazione iniziale dal file passato come argomento
-        File configFile = new File("config.txt");
+        File configFile = new File(args[0]);
         if ( !configFile.exists() || !configFile.isFile() ){
             // TODO terminazione
             System.exit(1);
@@ -87,7 +87,8 @@ public class ServerMainNIO {
                         break;
                     }
                     case "PERC_AUTH":{
-                        percAuth = Float.parseFloat(token[1]);
+                        System.out.println("SERVER: compila");
+                        percAuth = Float.parseFloat("0.8");
                         if ( percAuth < 0 || percAuth > 1 )
                             System.exit(1);
                         break;
@@ -117,16 +118,16 @@ public class ServerMainNIO {
                 );
                 System.exit(1);
             }
-
         } catch ( Exception e ){
-            System.err.println(e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
         
         if ( DEBUG ) System.out.println("SERVER: Parametri di configurazione corretti");
 
         // TODO creare un database temporaneo per eseguire i test
-        
+        database = new WinsomeDB();
+
         /*
         state.loadWinsomeState(database);
         RewardCalculator rewardCalculator = null;
@@ -141,12 +142,14 @@ public class ServerMainNIO {
             System.exit(1);
         }
         rewardCalculator.run();
-        */
+        
         if ( DEBUG ) System.out.println("SERVER: RewardCalculator avviato");
+        */
 
-        // Preparazione del servizio rmi
+        // Preparazione del servizio RMI
         try {
             WinsomeRMIService serviceRMI = new WinsomeRMIService(database);
+            // Rappresentante del servizio che deve essere reperito in qualche modo dal client
             RMIServiceInterface stub = ( RMIServiceInterface ) UnicastRemoteObject.exportObject(serviceRMI, 0);
             LocateRegistry.createRegistry(rmiPort);
             Registry r = LocateRegistry.getRegistry(rmiPort);
