@@ -1,0 +1,35 @@
+[ {
+    "nickname": "Erica",
+    "psw": "pass",
+    "follower": [ "Chiara", "Luca" ],
+    "following": [ ],
+    "loggedIn": "true",
+    "tags": [ "uno", "due" ],
+    "postRewinned": [],
+    "blog":
+        [
+            {
+                "idPost": "1",
+                "title": "Titolo",
+                "author": "Erica",
+                "content": "Contenuto del post",
+                "newVotes" : {
+                    "Carlo" : "LIKE",
+                    "Gianni" : "LIKE",
+                    "Luca" : "UNLIKE"
+                },
+                "oldVotes": {
+                    "Chiara": "LIKE"
+                },
+                "newComments": {
+                    "Carlo": [ "Un commento di Carlo", "Un altro commento di Carlo" ]
+                },
+                "oldComments": {
+
+                },
+                "rewinners": [ "Gianni" ],
+                "nIterations": "2"
+            }
+        ],
+    "wallet": "0"
+} ]

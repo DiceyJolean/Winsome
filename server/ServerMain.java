@@ -3,6 +3,7 @@ package server;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -27,7 +28,6 @@ public class ServerMain {
     private static boolean DEBUG = true;
     private static final int KILOBYTE = 1024;
     
-    private static WinsomeDB database;
     // private static PersistentState state;
     private static String multicastAddress = null;
     private static int multicastPort = -1;
@@ -47,6 +47,7 @@ public class ServerMain {
             System.exit(1);
         }
 
+        // Leggo i parametri per la configurazione iniziale
         try (
             BufferedReader input = new BufferedReader(new FileReader(configFile))
         ){
@@ -125,9 +126,39 @@ public class ServerMain {
         
         if ( DEBUG ) System.out.println("SERVER: Parametri di configurazione corretti");
 
-        // TODO creare un database temporaneo per eseguire i test
-        database = new WinsomeDB();
+        WinsomeState state = null;
+        WinsomeDB database = null;
 
+        // Ripristino lo stato di Winsome e avvio il thread per il salvataggio periodico
+        try{
+            state = new WinsomeState("database.json", database, autosavePeriod);
+            database = state.loadWinsomeState();
+            if ( database == null ){
+                System.err.println("SERVER: Errore nel caricamento del database\n");
+                System.exit(1);
+            }
+            Thread thread = new Thread(state);
+            thread.start();
+        } catch ( IOException e ){
+            e.printStackTrace();
+            System.exit(1);
+        }
+                
+        // Preparazione del servizio RMI
+        try {
+            WinsomeRMIService serviceRMI = new WinsomeRMIService(database);
+            // Rappresentante del servizio che deve essere reperito in qualche modo dal client
+            RMIServiceInterface stub = ( RMIServiceInterface ) UnicastRemoteObject.exportObject(serviceRMI, 0);
+            LocateRegistry.createRegistry(rmiPort);
+            Registry r = LocateRegistry.getRegistry(rmiPort);
+            r.rebind(rmiServiceName, stub);
+
+            if ( DEBUG ) System.out.println("Server: Servizio RMI pronto su (" + rmiServiceName + ", " + rmiPort + ")\n");
+        } catch ( RemoteException e ){
+            e.printStackTrace();
+            System.exit(1);
+        }
+        
         /*
         state.loadWinsomeState(database);
         RewardCalculator rewardCalculator = null;
@@ -145,21 +176,6 @@ public class ServerMain {
         
         if ( DEBUG ) System.out.println("SERVER: RewardCalculator avviato");
         */
-
-        // Preparazione del servizio RMI
-        try {
-            WinsomeRMIService serviceRMI = new WinsomeRMIService(database);
-            // Rappresentante del servizio che deve essere reperito in qualche modo dal client
-            RMIServiceInterface stub = ( RMIServiceInterface ) UnicastRemoteObject.exportObject(serviceRMI, 0);
-            LocateRegistry.createRegistry(rmiPort);
-            Registry r = LocateRegistry.getRegistry(rmiPort);
-            r.rebind(rmiServiceName, stub);
-
-            if ( DEBUG ) System.out.println("Server: Servizio RMI pronto su (" + rmiServiceName + ", " + rmiPort + ")\n");
-        } catch ( RemoteException e ){
-            e.printStackTrace();
-            System.exit(1);
-        }
 
         ServerSocketChannel serverSocketChannel;
         Selector selector = null;

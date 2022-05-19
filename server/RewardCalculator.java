@@ -6,8 +6,8 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import shared.NullArgumentException;
 
@@ -76,7 +76,7 @@ public class RewardCalculator implements Runnable{
             // Struttura che raccoglie i nomi dei curatori per ogni post
             Set<String> curators = new HashSet<String>();
 
-            ConcurrentHashMap<String, WinsomeUser> users;
+            Map<String, WinsomeUser> users;
             // Raccolta delle ricompense per utente
             HashMap<String, Double> rewardPerUser = new HashMap<String, Double>();
 

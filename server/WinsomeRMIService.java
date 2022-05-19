@@ -23,36 +23,43 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
     throws RemoteException {
         try{
             WinsomeUser newUser = new WinsomeUser(username, password, tags);
-            if ( DEBUG ) System.out.println("RMIService: Aggiunto nuovo utente \"" + newUser.toString() + "\" a Winsome");
+            if ( db.addUser(newUser) ){
+                if ( DEBUG ) System.out.println("RMIService: Aggiunto nuovo utente \"" + newUser.toString() + "\" a Winsome");
+            }
 
             if ( DEBUG ){
                 // Aggiungo follower fittizi
-                db.addUser(newUser);
-                db.getUsers().get(username).addFollower("UnFollower");
-
+                // db.getUsers().get(username).addFollower("UnFollower");
+                db.addFollower(username, "UnFollower");
             }
 
             return true; // db.addUser(newUser);
-        } catch ( NullArgumentException e ){
+        } catch ( Exception e ){
             return false;
         }
     }
 
     @Override
-    public Set<String> registerForCallback(ClientNotifyInterface user)
+    public Set<String> registerForCallback( ClientNotifyInterface user)
     throws RemoteException {
         clients.add(user);
         if ( DEBUG ) System.out.println("RMIService: Aggiunto nuovo utente \"" + user.getUser() + "\" al servizio di notifica");
 
-        Set<String> toReturn = db.getUsers().get(user.getUser()).getFollower();
         try{
             db.getUsers().get(user.getUser()).addFollower("NewFollower");
+            
+            Set<String> followers = db.getUsers().get(user.getUser()).getFollower();
+            System.out.println("\nRMIService: Dovrei aver aggiunto un follower al database, ecco alcuni dati:\n" +
+            "L'utente \"" + db.getUsers().get(user.getUser()).getNickname() + "\" ha i seguenti followers:\n" +
+            db.getUsers().get(user.getUser()).getFollower().toString() + "\n");
+            
             doCallback(user.getUser(), "Notifica");
-        } catch ( NullArgumentException e ){
+
+            return followers;
+        } catch ( Exception e ){
+            e.printStackTrace();
             return null;
         }
-
-        return toReturn;
     }
 
     @Override

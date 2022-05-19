@@ -4,10 +4,10 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import shared.NullArgumentException;
 
@@ -17,17 +17,22 @@ public class WinsomePost implements Serializable{
     private String title; // Titolo del post
     private String author; // Autore del post
     private String content; // Contenuto (testo) del post
-    private HashMap<String, Vote> newVotes; // Insieme dei voti ricevuti dal post, un utente può votare solo una volta (dopo l'ultima iterazione del rewarding)
-    private HashMap<String, Vote> oldVotes; // Insieme dei voti ricevuti dal post, un utente può votare solo una volta (prima dell'ultima iterazione del rewarding)
-    private HashMap<String, ArrayList<String>> newComments; // Insieme dei commenti ricevuti dal post (dopo l'ultima iterazione del rewarding)
-    private HashMap<String, ArrayList<String>> oldComments; // Insieme dei commenti ricevuti dal post (prima dell'ultima iterazione del rewarding)
+    private Map<String, Vote> newVotes; // Insieme dei voti ricevuti dal post, un utente può votare solo una volta (dopo l'ultima iterazione del rewarding)
+    private Map<String, Vote> oldVotes; // Insieme dei voti ricevuti dal post, un utente può votare solo una volta (prima dell'ultima iterazione del rewarding)
+    private Map<String, ArrayList<String>> newComments; // Insieme dei commenti ricevuti dal post (dopo l'ultima iterazione del rewarding)
+    private Map<String, ArrayList<String>> oldComments; // Insieme dei commenti ricevuti dal post (prima dell'ultima iterazione del rewarding)
     private Set<String> rewinners; // Insieme degli utenti che hanno rewinnato il post
-    private AtomicInteger nIterations; // Numero di iterazioni del rewarding eseguite sul post
+    private int nIterations; // Numero di iterazioni del rewarding eseguite sul post
 
     // Vote only could be LIKE or UNLIKE
     public static enum Vote{
             LIKE,
             UNLIKE;
+
+            // Necessario per serializzare in JSON
+            public String getVote(){
+                return this.name();
+            }
         }
     
     public WinsomePost(int idPost, String author, String content){
@@ -40,7 +45,7 @@ public class WinsomePost implements Serializable{
         this.newComments = new HashMap<String, ArrayList<String>>();
         this.oldComments = new HashMap<String, ArrayList<String>>();
         this.rewinners = new HashSet<String>();
-        this.nIterations = new AtomicInteger(0);
+        this.nIterations = 0;
     }
 
     // =========== Getter
@@ -62,6 +67,16 @@ public class WinsomePost implements Serializable{
         return this.content;
     }
 
+    public String toPrint(){
+        return "\n\t\tID: " + idPost +
+            "\n\t\tTITLE: " + title +
+            "\n\t\tCONTENUTO: " + content +
+            "\n\t\tAUTORE: " + author +
+            "\n\t\tVOTI: " + newVotes.toString() + oldVotes.toString() +
+            "\n\t\tCOMMENTI: " + newComments.toString() + oldComments.toString() +
+            "\n\t\tREWINNERS: " + rewinners.toString() +
+            "\n\t\tN_ITER: " + nIterations;
+    }
     // =========== Setter
 
     public boolean addVote(String user, int value)
@@ -134,7 +149,7 @@ public class WinsomePost implements Serializable{
 
     /**
      * I metodi che seguono sono chiamati esclusivamente dal thread per il calcolo delle ricompense
-     * Non sono sincronizzati il thread per il calcolo delle ricompense si occuperà di gestire la concorrenza
+     * Non sono sincronizzati! Il thread per il calcolo delle ricompense si occuperà di gestire la concorrenza
      * In questo modo la ricompensa relativa ai singoli post viene calcolata sulla stessa istanza dell'oggetto
      */
 
@@ -205,11 +220,11 @@ public class WinsomePost implements Serializable{
     }
 
     public int getIterations(){
-        return this.nIterations.get();
+        return nIterations;
     }
 
     public int increaseIterations(){
-        return this.nIterations.incrementAndGet();
+        return nIterations++;
     }
 
 }

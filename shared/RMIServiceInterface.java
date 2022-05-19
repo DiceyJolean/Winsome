@@ -18,7 +18,7 @@ public interface RMIServiceInterface extends Remote {
     public abstract boolean register(String username, String password, Set<String> tags)
     throws RemoteException;
 
-    public abstract Set<String> registerForCallback(ClientNotifyInterface user)
+    public abstract Set<String> registerForCallback( ClientNotifyInterface user)
     throws RemoteException;
 
     /**

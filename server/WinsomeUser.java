@@ -20,8 +20,8 @@ public class WinsomeUser implements Serializable {
     private String psw;
     private Set<String> follower;
     private Set<String> following;
-    private int loggedIn;
-    private Set<String> tag;
+    private boolean loggedIn;
+    private Set<String> tags;
     private Set<Integer> postRewinned; // I post sono indicati univocamente dal loro postID
     private Set<WinsomePost> blog; // Insieme dei post pubblicati da questo utente TODO ridondanza?? Sarà solo un riferimento, giustamente!
     private double wallet;
@@ -36,13 +36,14 @@ public class WinsomeUser implements Serializable {
      * @throws IndexOutOfBoundsException se sono indicati più di 5 tags o meno di 1
      * @throws NullArgumentException se nickname o psw sono null
      */
-    public WinsomeUser(String nickname, String psw, Set<String> tags)
-    throws IndexOutOfBoundsException, NullArgumentException {
+    public WinsomeUser(String nickname, String psw, Set<String> tags){
+    // throws IndexOutOfBoundsException, NullArgumentException {
         if ( tags.size() < 1 || tags.size() > 5 )
             throw new IndexOutOfBoundsException();
 
         if ( nickname == null || psw == null )
-            throw new NullArgumentException();
+            return;
+            // throw new NullArgumentException();
 
         String salt = BCrypt.gensalt();
         String hashedPsw = BCrypt.hashpw(psw, salt);
@@ -51,12 +52,12 @@ public class WinsomeUser implements Serializable {
         this.nickname = nickname;
         this.follower = new HashSet<String>();
         this.following = new HashSet<String>();
-        this.loggedIn = 0;
+        this.loggedIn = false;
         this.wallet = 0;
         this.postRewinned = new HashSet<Integer>();
         this.blog = new HashSet<WinsomePost>();
-        this.tag = new HashSet<String>();
-        this.tag.addAll(tags);
+        this.tags = new HashSet<String>();
+        this.tags.addAll(tags);
     }
 
     /**
@@ -74,7 +75,7 @@ public class WinsomeUser implements Serializable {
      */
     public Set<String> getTags(){
         // Restituisco una deep copy perché la struttura dei tag non deve poter essere modificata
-        return new HashSet<String>(this.tag);
+        return new HashSet<String>(this.tags);
     }
 
     /**
@@ -100,9 +101,9 @@ public class WinsomeUser implements Serializable {
             throw new NullArgumentException();
 
         if ( BCrypt.checkpw(psw, this.psw) )
-            this.loggedIn = 1;
+            this.loggedIn = true;
 
-        return ( this.loggedIn == 1 );
+        return this.loggedIn;
     }
 
     /**
@@ -112,11 +113,11 @@ public class WinsomeUser implements Serializable {
      * @return true se l'inserimento ha avuto successo, false altrimenti
      * @throws NullArgumentException se user è null
      */
-    public boolean addFollower(String user)
-    throws NullArgumentException {
+    public boolean addFollower(String user){
+    /* throws NullArgumentException {
         if ( user == null )
             throw new NullArgumentException();
-
+    */
         return this.follower.add(user);
     }
 
@@ -165,10 +166,10 @@ public class WinsomeUser implements Serializable {
         return this.blog.add(post);
     }
 
-    // REstituisce una copia dei follower di questo utente
+    // Restituisce una copia dei follower di questo utente
     public Set<String> getFollower(){
         Set<String> copy = new HashSet<String>();
-        this.follower.addAll(copy);
+        copy.addAll(follower);
 
         return copy;
     }
@@ -177,7 +178,7 @@ public class WinsomeUser implements Serializable {
      * Effettua il logout dell'utente
     */
     public void logout(){
-        this.loggedIn = 0;
+        this.loggedIn = false;
     }
 
     /**
@@ -259,8 +260,26 @@ public class WinsomeUser implements Serializable {
         return new HashSet<WinsomePost>(this.blog);
     }
 
-    @Override public String toString(){
-        return this.nickname + " " + this.psw + " " + tag.toString();
+    @Override
+    public String toString(){
+        return this.nickname + " " + this.psw + " " + tags.toString();
     }
 
+    public String toPrint(){
+        String allPost = new String();
+        for (WinsomePost post : this.blog ){
+            allPost = allPost + post.toPrint();
+        }
+
+        return "\tNICKNAME: " + nickname +
+            "\n\tPASSWORD: " + psw +
+            "\n\tTAGS: " + tags.toString() +
+            "\n\tFOLLOWER: " + follower.toString() +
+            "\n\tSEGUITI: " + following.toString() + 
+            "\n\tLOGGATO: " + loggedIn +
+            "\n\tWALLET: " + wallet +
+            "\n\tPOST: " + allPost +
+            "\n\tREWIN: " + postRewinned.toString();
+
+    }
 }

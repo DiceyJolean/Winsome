@@ -167,12 +167,17 @@ public class ClientMain {
                         thisUser = new String(req[1]);
                         String psw = new String(req[2]);
                         
-                        if ( login(thisUser, psw) ){
-                            if ( DEBUG ) System.out.println("CLIENT: login effettuato con successo");
-                        }
-                        else{
-                            // TODO errore nel login
-                            System.err.println("CLIENT: Errore durante la fase di login");
+                        try{
+                            if ( login(thisUser, psw) ){
+                                if ( DEBUG ) System.out.println("CLIENT: login effettuato con successo");
+                            }
+                            else{
+                                // TODO errore nel login
+                                System.err.println("CLIENT: Errore durante la fase di login");
+                            }
+                        } catch ( Exception e ){
+                            e.printStackTrace();
+                            System.exit(1);
                         }
                         break;
                     }
@@ -394,12 +399,11 @@ public class ClientMain {
             }
             System.out.println("Chiusura del client");
             serverSocket.close();
-
         } catch ( IOException e ){
             System.err.println(e.getMessage());
             System.exit(1);
         }
-
+        System.exit(0);
     }
 
     public static boolean register(String username, String password, Set<String> tags){
@@ -441,8 +445,9 @@ public class ClientMain {
         // Finita la fase di login su Winsome, il client si registra al servizio di callback
         try{
             followers = serviceRMI.registerForCallback(stub);
+                        
             if ( DEBUG ) System.out.println("CLIENT: Mi registro al servizio di notifica");
-            if ( DEBUG ) System.out.println("CLIENT: I miei follower sono: " + followers.toString());
+            // if ( DEBUG ) System.out.println("CLIENT: I miei follower sono: " + followers.toString());
         } catch (RemoteException e ){
             e.printStackTrace();
             return false;
