@@ -37,6 +37,7 @@ public class ServerMain {
     private static int rewardPeriod = -1;
     private static float percAuth;
     private static int autosavePeriod = -1;
+    private static String filename = null;
 
     public static void main (String[] args){
 
@@ -100,6 +101,10 @@ public class ServerMain {
                             System.exit(1);
                         break;
                     }
+                    case "DATABASE":{
+                        filename = new String(token[1]);
+                        break;
+                    }
                     default:{
                         break;
                     }
@@ -115,7 +120,8 @@ public class ServerMain {
                 "RMI_NAME_SERVICE = " + rmiServiceName + "\n" +
                 "REWARD_PERIOD = " + rewardPeriod + "\n" +
                 "PERC_AUTH = " + percAuth + "\n" +
-                "AUTOSAVE_PERIOD = " + autosavePeriod + "\n"
+                "AUTOSAVE_PERIOD = " + autosavePeriod + "\n" +
+                "DATABASE = " + filename + "\n"
                 );
                 System.exit(1);
             }
@@ -131,14 +137,14 @@ public class ServerMain {
 
         // Ripristino lo stato di Winsome e avvio il thread per il salvataggio periodico
         try{
-            state = new WinsomeState("database.json", database, autosavePeriod);
+            state = new WinsomeState(filename, database, autosavePeriod);
             database = state.loadWinsomeState();
             if ( database == null ){
                 System.err.println("SERVER: Errore nel caricamento del database\n");
                 System.exit(1);
             }
             Thread thread = new Thread(state);
-            thread.start();
+            // thread.start();
         } catch ( IOException e ){
             e.printStackTrace();
             System.exit(1);

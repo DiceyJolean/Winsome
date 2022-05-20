@@ -67,6 +67,10 @@ public class WinsomePost implements Serializable{
         return this.content;
     }
 
+    public Set<String> getRewinners(){
+        return rewinners;
+    }
+
     public String toPrint(){
         return "\n\t\tID: " + idPost +
             "\n\t\tTITLE: " + title +

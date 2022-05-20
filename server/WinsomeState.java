@@ -4,14 +4,18 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
+import java.util.Map;
+import java.lang.reflect.Type;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 // Classe che si occupa del caricamento e del salvataggio dello stato di Winsome
 public class WinsomeState implements Runnable {
     private WinsomeDB db;
     private File file;
+    private String filename;
     private long period;
     private volatile boolean toStop = false;
 
@@ -19,6 +23,7 @@ public class WinsomeState implements Runnable {
     throws IOException {
         this.db = db;
         this.period = period;
+        this.filename = filename;
 
         // Apre il file JSON dove è salvato lo stato del server
         // Se non è ancora stato creato, lo crea
@@ -48,10 +53,12 @@ public class WinsomeState implements Runnable {
     }
 
     public boolean updateWinsomeState(){
-        WinsomeDB copy = db.getDBCopy();
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        String json = gson.toJson(copy);
-        File uptadedDB = new File("New_DataBase.json");
+        String json = null;
+        synchronized(db){
+            json = gson.toJson(db.getUsers());
+        }
+        File uptadedDB = new File(filename);
 
         try(
             PrintWriter out = new PrintWriter(uptadedDB);
@@ -76,12 +83,8 @@ public class WinsomeState implements Runnable {
                 // TODO da java 11
                 String tmp = Files.readString(file.toPath());
 
-                WinsomeUser[] users = gson.fromJson(tmp, WinsomeUser[].class);
-                for ( WinsomeUser user : users ){
-                    System.out.println("JSON: Sto stampando un utente winsome");
-                    database.addUser(user);
-                    System.out.println(user.toPrint());
-                }
+                Type gsonType = new TypeToken<Map<String, WinsomeUser>>(){}.getType();
+                database.loadDatabase( gson.fromJson(tmp, gsonType) );
 
             } catch ( IOException e ){
                 e.printStackTrace();
