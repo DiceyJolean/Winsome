@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.rmi.NotBoundException;
@@ -34,17 +35,17 @@ public class ClientMain {
     private static final int MINTAGS = 1;
     private static final int MAXTAGS = 5;
 
-    private static Socket serverSocket = null;
+    private static Socket socket = null;
     private static int rmiPort = 0;
     private static String rmiServiceName = null;
 
     private static String thisUser = null; // Nick dell'utente che si logga utilizzando questo client
     private static boolean logged = false;
-    private static BufferedReader in;
-    private static PrintWriter out;
+    private static BufferedReader in = null;
+    private static PrintWriter out = null;
     private static Set<String> followers = null;
-    private static RMIServiceInterface serviceRMI;
-    private static ClientNotify stub;
+    private static RMIServiceInterface serviceRMI = null;
+    private static ClientNotify stub = null;
 
     public static void main(String[] args){
         // Leggo i parametri per la configurazione iniziale dal file passato come argomento
@@ -110,9 +111,21 @@ public class ClientMain {
         InetAddress address = null;
         try{
             address = InetAddress.getLocalHost();
-            serverSocket = new Socket(address, tcpPort);
-            out = new PrintWriter( serverSocket.getOutputStream() );
-            in = new BufferedReader( new InputStreamReader( serverSocket.getInputStream() ));
+            while ( socket == null ){
+                try{
+                    socket = new Socket(address, tcpPort);
+                } catch ( ConnectException e ){
+                    // TODO 
+                    try{
+                    Thread.sleep(10000);
+                    } catch ( InterruptedException ex ){
+                        e.printStackTrace();
+                        System.exit(1);
+                    }
+                }
+            }
+            out = new PrintWriter(socket.getOutputStream(), true); // Flush automatico
+            in = new BufferedReader( new InputStreamReader( socket.getInputStream() ));            
         } catch ( Exception e ){
             e.printStackTrace();
             System.exit(1);
@@ -398,7 +411,7 @@ public class ClientMain {
                 }
             }
             System.out.println("Chiusura del client");
-            serverSocket.close();
+            socket.close();
         } catch ( IOException e ){
             System.err.println(e.getMessage());
             System.exit(1);
@@ -433,22 +446,40 @@ public class ClientMain {
 
     public static boolean login(String username, String password){
         System.out.println("LOGIN\t username: " + username + ", password: " + password);
-        if ( thisUser == null || logged )
+        if ( thisUser == null || logged ){
             // Questo utente ha già effettuato il login (con questo client)
+            System.out.println("CLIENT: È già stato effettuato il login con l'utente " + thisUser);
             return false;
+        }
 
         // La fase di login viene fatta tramite connessione TCP
-        
-        logged = true;
-        thisUser = username;
+        String request = "LOGIN\n" + username + "\n" + password;
 
-        // Finita la fase di login su Winsome, il client si registra al servizio di callback
         try{
-            followers = serviceRMI.registerForCallback(stub);
-                        
-            if ( DEBUG ) System.out.println("CLIENT: Mi registro al servizio di notifica");
-            // if ( DEBUG ) System.out.println("CLIENT: I miei follower sono: " + followers.toString());
-        } catch (RemoteException e ){
+            out.println(request);
+            System.out.println("CLIENT: Ho inviato la richiesta al server");
+            String status = in.readLine();
+            System.out.println("Leggo " + status);
+            logged = Boolean.parseBoolean(status);
+            if ( !logged ){
+                // Il messaggio di errore è il secondo token di reply
+                System.out.println(in.readLine());
+                return false;
+            }
+
+            thisUser = username;
+            
+            // se il login ha avuto successo, il client si registra al servizio di callback tramite RMI
+            try{
+                followers = serviceRMI.registerForCallback(stub);
+                            
+                if ( DEBUG ) System.out.println("CLIENT: Mi registro al servizio di notifica");
+                // if ( DEBUG ) System.out.println("CLIENT: I miei follower sono: " + followers.toString());
+            } catch (RemoteException e ){
+                e.printStackTrace();
+                return false;
+            }
+        } catch ( IOException e ){
             e.printStackTrace();
             return false;
         }

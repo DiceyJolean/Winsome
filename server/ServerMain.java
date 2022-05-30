@@ -25,19 +25,130 @@ import shared.*;
 
 public class ServerMain {
 
-    private static boolean DEBUG = true;
+    private static final boolean DEBUG = true;
     private static final int KILOBYTE = 1024;
     
-    // private static PersistentState state;
     private static String multicastAddress = null;
+    private static String filename = null;
+    private static String rmiServiceName = null;
+    private static WinsomeDB database = null;
     private static int multicastPort = -1;
     private static int tcpPort = -1;
     private static int rmiPort = -1;
-    private static String rmiServiceName = null;
     private static int rewardPeriod = -1;
-    private static float percAuth;
     private static int autosavePeriod = -1;
-    private static String filename = null;
+    private static float percAuth = -1;
+
+    private static String processRequest(String request){
+        String reply = ""; // Messaggio di risposta da inviare al client
+        boolean status = false; // Esito dell'operazione
+        String description = "Success"; // Descrizione dell'esito dell'operazione
+        String attr = ""; // Eventuali attributi da restituire al client
+        
+        // La richiesta è nel formato OPERATION\nUSERNAME\nATTRIBUTI
+        String[] token = request.split("\n");
+
+        String operation = new String(token[0]);
+        String user = new String(token[1]);
+
+        if ( DEBUG ) System.out.println("SERVER: Processo la richiesta di " + operation + " dell'utente " + user);
+
+        try{
+            switch ( operation ){
+                case "ADD_COMMENT":{
+                    status = database.addComment(user, Integer.parseInt(token[2]), token[3]);
+                    
+                    break;
+                }
+                case "ADD_FOLLOWER":{
+                    status = database.addFollower(user, token[2]);
+                    break;
+                }
+                case "CREATE_POST":{
+                    status = database.createPost(user, token[2], token[3]);
+                    break;
+                }
+                case "DELETE_POST":{
+                    status = database.deletePost(user, Integer.parseInt(token[2]));
+                    break;
+                }
+                case "FOLLOW_USER":{    
+                    status = database.followUser(user, token[2]);
+                    break;
+                }
+                case "GET_WALLET":{
+                    attr = database.getWallet(user).toString();
+                    status = true;
+                    break;
+                }
+                // status = database.getWalletInBitcoin(user); TODO 
+                case "LIST_FOLLOWING":{
+                    attr = database.listFollowing(user).toArray().toString();
+                
+                    status = true;
+                    break;
+                }
+                case "LIST_USERS":{
+                    attr = database.listUsers(user).toArray().toString();
+                    status = true;
+                    break;
+                }
+                case "LOGIN":{
+                    status = database.login(user, token[2]);
+                    
+                    break;
+                }
+                case "LOGOUT":{
+                    status = database.logout(user);
+                    
+                    break;
+                }
+                case "RATE_POST":{
+                    status = database.ratePost(user, Integer.parseInt(token[2]), Integer.parseInt(token[3]));
+                    break;
+                }
+                case "REWIN_POST":{
+                    status = database.rewinPost(user, Integer.parseInt(token[2]));
+                    break;
+                }
+                case "SHOW_FEED":{
+                    attr = database.showFeed(user).toArray().toString();
+                    status = true;
+                    break;
+                }
+                case "SHOW_POST":{
+                    attr = database.showPost(Integer.parseInt(token[2])).toPrint();
+                    status = true;
+                    break;
+                }
+                case "UNFOLLOW_USER":{
+                    status = database.unfollowUser(user, token[2]);
+                    break;
+                }
+                case "VIEW_BLOG":{
+                    attr = database.viewBlog(user).toArray().toString();
+                    status = true;
+                    break;
+                }
+                default:{
+                    status = false;
+                    description = "Operation not allowed";
+                    if ( DEBUG ) System.out.println("SERVER: Qualcosa è andato storto nel processare la richiesta");
+                    
+                    return null;
+                }
+            }
+        } catch ( Exception e ){
+            status = false;
+            description = e.getMessage();
+            e.printStackTrace();
+        } finally {
+            reply = status + "\n" + description + "\n" + attr.toString();
+        }            
+
+        if ( DEBUG ) System.out.println("SERVER: Restituisco " + reply + " da processRequest");
+        return reply;
+    }
 
     public static void main (String[] args){
 
@@ -49,6 +160,7 @@ public class ServerMain {
         }
 
         // Leggo i parametri per la configurazione iniziale
+        // Working
         try (
             BufferedReader input = new BufferedReader(new FileReader(configFile))
         ){
@@ -133,9 +245,9 @@ public class ServerMain {
         if ( DEBUG ) System.out.println("SERVER: Parametri di configurazione corretti");
 
         WinsomeState state = null;
-        WinsomeDB database = null;
 
         // Ripristino lo stato di Winsome e avvio il thread per il salvataggio periodico
+        // Working
         try{
             state = new WinsomeState(filename, database, autosavePeriod);
             database = state.loadWinsomeState();
@@ -144,13 +256,14 @@ public class ServerMain {
                 System.exit(1);
             }
             Thread thread = new Thread(state);
-            // thread.start();
+            thread.start();
         } catch ( IOException e ){
             e.printStackTrace();
             System.exit(1);
         }
                 
         // Preparazione del servizio RMI
+        // Working
         try {
             WinsomeRMIService serviceRMI = new WinsomeRMIService(database);
             // Rappresentante del servizio che deve essere reperito in qualche modo dal client
@@ -183,6 +296,8 @@ public class ServerMain {
         if ( DEBUG ) System.out.println("SERVER: RewardCalculator avviato");
         */
 
+        // Apertura della connessione TCP con NIO
+        // Working
         ServerSocketChannel serverSocketChannel;
         Selector selector = null;
         try{
@@ -264,7 +379,9 @@ public class ServerMain {
                             if ( DEBUG ) System.out.println("SERVER: Leggo \""+ msg +"\" dal client");
                             // Elaboro la richiesta
                             // Metto la risposta nell'attachment
-
+                            String reply = processRequest(msg);
+                            if ( DEBUG ) System.out.println("SERVER: Spero di leggere questo messaggio! Significa che processRequest è ritornata");
+                            key.attach(reply);
 
                             key.interestOps(SelectionKey.OP_WRITE);
                             
@@ -273,21 +390,32 @@ public class ServerMain {
                     else if ( key.isWritable() ){
                         
                         SocketChannel client = (SocketChannel) key.channel();
-                        String msg = new String("200\nOK\n");
-                        
                         client.configureBlocking(false);
 
-                        if ( DEBUG ) System.out.println("SERVER: Provo a scrivere a un client\n");
-                        ByteBuffer buffer = ByteBuffer.wrap(msg.getBytes());
+                        String reply = ( String ) key.attachment();
+
+                        if ( reply == null ){
+                            System.err.println("SERVER: Errore con il client, chiudo la connessione");
+                            key.cancel();
+                            client.close();
+                        }
+                        if ( DEBUG )
+                            System.out.println("SERVER: Sto per inviare la risposta al client, analiziamola:\n" + reply);
+                        if ( DEBUG ) System.out.println("SERVER: Faccio la wrap della richiesta, poi la write");
+
+                        ByteBuffer buffer = ByteBuffer.wrap(reply.getBytes());
                         int byteWrote = client.write(buffer);
 
-                        if ( byteWrote == msg.length() ){
+                        if ( byteWrote == reply.toString().length() ){
                             // Ho scritto tutto
-                            if ( DEBUG ) System.out.println("SERVER: Ho inviato \"" + msg + "\" al client\n");
+                            if ( DEBUG ) System.out.println("SERVER: Ho inviato la risposta al client\n");
                             key.interestOps(SelectionKey.OP_READ);                            
                         }
+                        // TODO se non ho scritto tutto? Limit e position saranno nella giusta posizione per la prossima scrittura
+                        // Sarebbe così se mandassi un byte buffer, ma mando un oggetto reply
                     }
                 } catch ( Exception e ){
+                    e.printStackTrace();
                     key.cancel();
                     try {
                         key.channel().close();

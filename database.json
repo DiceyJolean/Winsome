@@ -2,17 +2,16 @@
   "Erica": {
     "nickname": "Erica",
     "psw": "pass",
-    "tags": [
-      "uno",
-      "due"
-    ],
-    
     "follower": [
       "Chiara",
       "Luca"
     ],
     "following": [],
     "loggedIn": true,
+    "tags": [
+      "uno",
+      "due"
+    ],
     "postRewinned": [],
     "blog": [
       {
@@ -41,6 +40,82 @@
         "nIterations": 2
       }
     ],
+    "wallet": 0.0
+  },
+  "ciao": {
+    "nickname": "ciao",
+    "psw": "$2a$10$iGVFJBx7Dt0vGl7JVPTmGuxGQ1dCbf7jCZag/XM2euVwmBrDWWS.K",
+    "follower": [
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "prova": {
+    "nickname": "prova",
+    "psw": "$2a$10$7xdJW4/rY3qv01HU56Ysj.bXhS0Bq16DfmX.gkgG8OPNfhz8fiGpG",
+    "follower": [
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "un": {
+    "nickname": "un",
+    "psw": "$2a$10$ZPkqwddOtqo1NNMb1hpY6uiFETSrXS7gKSH94JSM522JyHqJS/WN.",
+    "follower": [
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "ancora": {
+    "nickname": "ancora",
+    "psw": "$2a$10$X6m1MDr/XoqRP1WeulpHj.lXVc5k8cYdQVArnaslWCWbfSlaKInp6",
+    "follower": [
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": false,
+    "tags": [
+      "prova"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "nuovo": {
+    "nickname": "nuovo",
+    "psw": "$2a$10$LsPtGUtdpK3duGQ0lm68P.us/AQdLrpsxjj1DkwKPEB2qdY7pnHiW",
+    "follower": [
+      "NewFollower",
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a"
+    ],
+    "postRewinned": [],
+    "blog": [],
     "wallet": 0.0
   }
 }

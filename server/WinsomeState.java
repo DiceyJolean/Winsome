@@ -56,6 +56,7 @@ public class WinsomeState implements Runnable {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         String json = null;
         synchronized(db){
+            // Sincronizzo, invece di lavorare su una copia, perché questo metodo probabilmente sarà più veloce che fare la copia
             json = gson.toJson(db.getUsers());
         }
         File uptadedDB = new File(filename);

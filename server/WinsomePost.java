@@ -34,7 +34,31 @@ public class WinsomePost implements Serializable{
                 return this.name();
             }
         }
-    
+
+    public class PostView{
+        private int idPost;
+        private String title;
+        private String author;
+
+        public PostView(WinsomePost post){
+            idPost = post.getIdPost();
+            title = new String(post.getTitle());
+            author = new String(post.getAuthor());
+        }
+
+        public int getId(){
+            return idPost;
+        }
+
+        public String getTitle(){
+            return title;
+        }
+
+        public String getAuthor(){
+            return author;
+        }
+    }
+
     public WinsomePost(int idPost, String author, String content){
         this.idPost = idPost;
         this.title = new String(title);
@@ -83,10 +107,11 @@ public class WinsomePost implements Serializable{
     }
     // =========== Setter
 
-    public boolean addVote(String user, int value)
-    throws NullArgumentException, IllegalArgumentException {
+    public boolean addVote(String user, int value){
+    // throws NullArgumentException, IllegalArgumentException {
         if ( user == null )
-            throw new NullArgumentException();
+            return false;
+            // throw new NullArgumentException();
 
         Vote vote;
         switch ( value ){
@@ -128,22 +153,25 @@ public class WinsomePost implements Serializable{
         return false;
     }
 
-    public boolean addComment(String user, String comment)
-    throws NullArgumentException {
+    public boolean addComment(String user, String comment){
+    // throws NullArgumentException {
         if ( comment == null || user == null )
-            throw new NullArgumentException();
+            return false;
+            // throw new NullArgumentException();
 
         // Aggiungo sempre in newComment
         // Sposto tra new e old dopo il calcolo del reward
         synchronized ( this ){
+            // TODO eheheheheh
             return this.newComments.get(user).add(comment);
         }
     }
 
-    public boolean rewinPost(String user)
-    throws NullArgumentException {
+    public boolean rewinPost(String user){
+    // throws NullArgumentException {
         if ( user == null )
-            throw new NullArgumentException();
+            return false;
+            // throw new NullArgumentException();
 
         synchronized (this){
             return this.rewinners.add(user);

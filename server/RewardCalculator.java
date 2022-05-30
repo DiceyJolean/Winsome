@@ -78,24 +78,32 @@ public class RewardCalculator implements Runnable{
 
             Map<String, WinsomeUser> users;
             // Raccolta delle ricompense per utente
-            HashMap<String, Double> rewardPerUser = new HashMap<String, Double>();
+            Map<String, Double> rewardPerUser = new HashMap<String, Double>();
 
             byte[] buf = ( new String("Nuove ricompense disponibili")).getBytes();
             DatagramPacket packet = new DatagramPacket(buf, buf.length, address, port);
+
             while ( !terminate ){
                 try{
+                    // Si sospende fino alla prossima esecuzione del calcolo delle ricompense
                     Thread.sleep(period);
                 } catch ( InterruptedException e ){
                     // TODO Eccezione fatale
                 }
 
+                // Inizializzo la struttura che contiene per ogni utente iscritto a Winsome la propria ricompensa per questa iterazione
                 rewardPerUser.clear();
 
                 // Ottengo la lista di tutti gli utenti
-                users = database.getUsers();
+                // È un riferimento, dovrò gestire la concorrenza o sono tranquilla perché è una concurrenthashmap? TODO
+                WinsomeDB dbCopy = database.getCopy();
+                users = dbCopy.getUsers();
+                Set<String> keySet = users.keySet();
+                                
+                for (String user : keySet ){
+                    // Per ogni utente calcolo la ricompensa
 
-                for (String userName : database.getUsers().keySet() ){
-                    rewardPerUser.put(userName, null); // Aggiungo l'utente alla struttura dati che raccoglie le ricompense
+                    rewardPerUser.put(user, null); // Aggiungo l'utente alla struttura dati che raccoglie le ricompense
 
                     // Posso fare un for-each perché non modifico la struttura, invece che aver bisogno di un iteratore
                     // Accedo alla struttura in modalità lettura e ci pensa Java a sincronizzare (lock striping)
@@ -108,15 +116,21 @@ public class RewardCalculator implements Runnable{
                     // Potrei risolvere con una readlock su tutta la struttura
                     
                     // E INVECE LASCIO LA CONCORRENZA IN MANO ALLE API JAVA DELLA CONCURRENT HASHMAP E MI FIDO DELL'ITERATORE
+                    // for each per la lettura, iterator per la scrittura
 
-                    // Per ogni utente calcolo la ricompensa
-
-                    for (WinsomePost post : database.getPostPerUser(userName)){
+                    // Lavoro su una copia, non ho necessità di sincronizzare
+                    for (WinsomePost post : database.getPostPerUser(user)){
                         // Curatori del post tra i quali dividere la ricompensa
                         curators.clear();
                         rewPost = 0;
-                        // I metodi di post sono synchronized, ma lo tolgo su questi che chiamo qui
-                        synchronized (post){
+                        
+                        // perché li invoca soltanto il calcolatore, quindi non devono essere synch questi metodi,
+                        // piuttosto non devono essere aggiunti voti o commenti nel frattempo 
+                        
+                        // synchronized (post){
+                        // Ho scelto di lavorare su una copia, i voti, commenti o post rimossi saranno considerati alla prossima iterazione
+                            
+                        // I metodi di post sono synchronized, ma tolgo il synch su quelli che invoco qui
                             int voteSum = post.countVote(curators);
                             // In questo punto lo stesso post potrebbe ricevere alcuni commenti e non mi piace
                             // Sincronizzo durante il calcolo
@@ -128,36 +142,52 @@ public class RewardCalculator implements Runnable{
                             
                             post.increaseIterations();
                             post.switchNewOld();
-                        }
+                        // }
                     
                         for ( String curator : curators ){
                             // Per ogni curatore del post aggiorno la ricompensa totale
-                            rewardPerUser.putIfAbsent(curator, null);
-
-                            rewUpdate = rewardPerUser.get(curator);
-                            rewUpdate += ( rewPost * percCur ) / curators.size();
-                            rewardPerUser.replace(curator, rewUpdate);
+                            if ( rewardPerUser.get(curator) != null ){
+                                rewUpdate = rewardPerUser.get(curator);
+                                rewUpdate += ( rewPost * percCur ) / curators.size();
+                                rewardPerUser.replace(curator, rewUpdate);
+                            }
+                            else 
+                                rewardPerUser.put(curator, (rewPost * percCur) / curators.size() );
                         }
                         
                         // Aggiorno le ricompense dell'utente con quelle calcolate sul post
-                        rewUpdate = rewardPerUser.get(userName);
+                        rewUpdate = rewardPerUser.get(user);
                         rewUpdate += ( rewPost * percAuth );
-                        rewardPerUser.replace(userName, rewUpdate);
-                    }
-                }
-                // Ho calcolato le ricompense per tutti gli utenti
-                // Per aggiornare il portafoglio degli utenti devo accedere alla struttura in modo concorrente
-                for ( String user : users.keySet() ){
-                    synchronized(user){
-                        // Sincronizzo perché il thread che fa il backup potrebbe leggere il portafoglio
-                        // A questo punto potrebbero essere stati aggiunti altri utenti al database
-                        
-                        users.get(user).updateReward(rewardPerUser.get(user));
+                        rewardPerUser.replace(user, rewUpdate);
                     }
                 }
 
-                // Invio la notifica che le ricompense sono state aggiorate
-                socket.send(packet);
+                /*
+                // Ho calcolato le ricompense per tutti gli utenti
+                // Per aggiornare il portafoglio degli utenti devo accedere alla struttura in modo concorrente
+                // Non posso accedere a una copia, perché devo effettivamente aggiornare i campi del database
+                
+                keySet = database.getUsers().keySet();
+                // Non devo sincronizzare il database perché il campo users è rappresentato da una concurrenthashmap,
+                // Ha senso avere una concurrenthashmap se l'unica race condition è questa? TODO
+                for ( String user : keySet ){
+                    // TODO il thread che fa il backup non lavora utente per utente, quindi questa parte non va bene
+                    // Il thread del backup sincronizza l'intero database, quindi operare sugli utenti dopo aver fatto
+                    // la getUsers è una race condition perché non è sincronizzata, e qui allora ha senso la concurrent hashmap?
+                    // Potrei sincronizzare tutto il database di nuovo, magari non sarà efficienti
+                    
+                    // synchronized(user){
+                        // Sincronizzo perché il thread che fa il backup potrebbe leggere il portafoglio
+                        // A questo punto potrebbero essere stati aggiunti altri utenti al database
+                        
+                        // Potrei sincronizzare il metodo per l'aggiornamento e basta
+                        users.get(user).updateReward(rewardPerUser.get(user));
+                    // }
+                }
+                */
+                if ( database.updateReward(rewardPerUser) )
+                    // Invio la notifica che le ricompense sono state aggiorate
+                    socket.send(packet);
             }
 
             socket.close();

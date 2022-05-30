@@ -92,18 +92,24 @@ public class WinsomeUser implements Serializable {
      * 
      * @param psw Password dell'utente che vuole connettersi
      * @return true se il login ha avuto successo, false altrimenti
-     * @throws NullArgumentException se psw è null
      */
-    public boolean login(String psw)
-    throws NullArgumentException {
-        // TODO caso di più login di un utente da client diversi
+    public boolean login(String psw){
+        if ( loggedIn )
+            // Se l'utente è già connesso rispondo con esito negativo
+            // Gestisce anche il caso di login di uno stesso utente da client diversi
+            return false;
+
         if ( psw == null )
-            throw new NullArgumentException();
+            return false;
 
         if ( BCrypt.checkpw(psw, this.psw) )
             this.loggedIn = true;
 
         return this.loggedIn;
+    }
+
+    public Set<String> getFollowing(){
+        return following;
     }
 
     /**
@@ -128,10 +134,11 @@ public class WinsomeUser implements Serializable {
      * @return true se l'inserimento ha avuto successo, false altrimenti
      * @throws NullArgumentException se user è null
      */
-    public boolean addFollowing(String user)
-    throws NullArgumentException {
-        if ( user == null )
+    public boolean addFollowing(String user){
+    // throws NullArgumentException {
+        /*if ( user == null )
             throw new NullArgumentException();
+            */
 
         return this.following.add(user);
     }
@@ -158,10 +165,10 @@ public class WinsomeUser implements Serializable {
      * @return true se l'inserimento ha avuto successo, false altrimenti
      * @throws NullArgumentException se post è null
      */
-    public boolean addPost(WinsomePost post)
-    throws NullArgumentException {
-        if ( post == null )
-            throw new NullArgumentException();
+    public boolean addPost(WinsomePost post){
+    // throws NullArgumentException {
+        /*if ( post == null )
+            throw new NullArgumentException();*/
 
         return this.blog.add(post);
     }
@@ -177,8 +184,12 @@ public class WinsomeUser implements Serializable {
     /** 
      * Effettua il logout dell'utente
     */
-    public void logout(){
+    public boolean logout(){
+        if ( loggedIn == true )
+            return false;
+
         this.loggedIn = false;
+        return true;
     }
 
     /**
@@ -214,11 +225,12 @@ public class WinsomeUser implements Serializable {
      * @return true se la rimozione ha avuto successo, false altrimenti
      * @throws NullArgumentException se user è null
      */
-    public boolean removeFollower(String user)
-    throws NullArgumentException {
+    public boolean removeFollower(String user){
+    // throws NullArgumentException {
+        /*
         if ( user == null )
             throw new NullArgumentException();
-
+        */
         return this.following.remove(user);
     }
 
@@ -237,6 +249,10 @@ public class WinsomeUser implements Serializable {
         return this.following.remove(user);
     }
 
+    public boolean removePost(WinsomePost post){
+        return blog.remove(post);
+    }
+
     /**
      * Rimuove un post da quelli rewinnati
      * 
@@ -252,6 +268,10 @@ public class WinsomeUser implements Serializable {
         return this.postRewinned.remove(postId);
     }
 
+    public Set<Integer> getRewin(){
+        return this.postRewinned;
+    }
+
     /**
      * Restituisce una deep copy dei post pubblicati dall'utente
      * @return Una copia dei post pubblicati dall'utente
@@ -259,6 +279,8 @@ public class WinsomeUser implements Serializable {
     public Set<WinsomePost> getPosts(){
         return new HashSet<WinsomePost>(this.blog);
     }
+
+
 
     @Override
     public String toString(){

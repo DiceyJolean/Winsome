@@ -1,27 +1,37 @@
 package server;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Classe che rappresenta il database di Winsome,
  * ovvero raccoglie tutti i post e gli utenti
  */
 public class WinsomeDB implements Serializable {
+
     private final boolean DEBUG = true;
 
     private Map<Integer, WinsomePost> posts;
+    private AtomicInteger newPost; // Ha senso che sia atomico se solo il server crea i post, e per giunta uno per volta
     // Qual è il senso di rendere la struttura concurrent se poi utilizzo le lock?
     private Map<String, WinsomeUser> users;
+    private Map<String, Set<String>> tags;
 
     public WinsomeDB(){
         this.posts = new ConcurrentHashMap<Integer, WinsomePost>();
         this.users = new ConcurrentHashMap<String, WinsomeUser>();
+        // Non è concurrent perché soltanto il main del server vi accede
+        // In scrittura all'inserimento di un nuovo utente, in lettura alla richiesta di listUsers
+        this.tags = new HashMap<String, Set<String>>();
+        newPost = new AtomicInteger(0);
     }
 
-    public boolean addUser(WinsomeUser user){
+    protected boolean addUser(WinsomeUser user){
         if ( user == null )
             return false;
 
@@ -31,11 +41,21 @@ public class WinsomeDB implements Serializable {
             return false;
         }
 
+        // Aggiorno la struttura dei tags
+        Set<String> userTags = user.getTags();
+        for ( String tag : userTags ){
+            // Se non era presente lo aggiungo
+            tags.putIfAbsent(tag, new HashSet<String>());
+            // Poi aggiungo l'utente all'insieme di quelli che hanno indicato quel tag
+            tags.get(tag).add(user.getNickname());
+        }
+
+
         if ( DEBUG ) System.out.println("DATABASE: Inserimento di " + user.getNickname() + " avvenuto con successo\n");
         return true;
     }
 
-    public boolean addPost(WinsomePost post){
+    private boolean addPost(WinsomePost post){
         if ( post == null )
             return false;
 
@@ -78,7 +98,205 @@ public class WinsomeDB implements Serializable {
         return removed;
     }
 
+
+
+
+    /*
+    Qui ci vanno le funzioni del database che chiamerà l'api del server
+    */
+
+    public boolean followUser(String user, String toFollow){
+        if ( user == null || toFollow == null )
+            return false;
+
+        return users.get(user).addFollower(toFollow);
+    }
+
+    public Set<String> listUsers(String username){
+        if ( username == null )
+            return null;
+
+        Set<String> usersWithTagInCommon = new HashSet<String>();
+        Set<String> userTags = users.get(username).getTags();
+        
+        for ( String tag : userTags )
+            // Per ogni tag aggiungo all'insieme degli utenti con un tag in comune gli utenti presenti nel campo value della struttura dei tags
+            usersWithTagInCommon.addAll(tags.get(tag));
+
+        return usersWithTagInCommon;
+    }
+
+    public Set<String> listFollowing(String username){
+        if ( username == null )
+            return null;
+
+        return users.get(username).getFollowing();
+    }
+
+    public boolean login(String username, String password){
+        if ( username == null || password == null )
+            return false;
+
+        return users.get(username).login(password);
+    }
+
+    public boolean logout(String username){
+        if ( username == null )
+            return false;
+
+        return users.get(username).logout();
+    }
     
+    public boolean unfollowUser(String user, String toUnfollow){
+        if ( user == null || toUnfollow == null )
+            return false;
+
+        return users.get(user).removeFollower(toUnfollow);
+    }
+
+    // Post pubblicati e rewinnati dall'utente
+    public Set<WinsomePost> viewBlog(String username){
+        if ( username == null )
+            return null;
+
+            Set<WinsomePost> blog = getPostPerUser(username);
+            Set<Integer> rewin = getUser(username).getRewin();
+    
+            for ( Integer idPost : rewin )
+                blog.add(((posts.get(idPost))));
+    
+            return blog;
+    }
+
+    public boolean createPost(String author, String title, String content){
+        if ( author == null || title == null || content == null )
+            return false;
+
+        // TODO ma la gestione della concorrenza?
+        // Qui o il reward lavora su una copia, o devo sincronizzare
+        // Per ora sincronizzo
+        WinsomePost post = new WinsomePost(newPost.incrementAndGet(), author, content);
+        WinsomeUser user = users.get(author);
+        // Qui inizia la race condition
+        synchronized(user){
+            user.addPost(post);
+        }
+        // Qui finisce immagino, dipende se il reward lavora su posts, ma mi sembra di no
+        posts.put(post.getIdPost(), post);
+
+        return true;
+    }
+
+    // I post di tutti i miei seguiti più i loro rewin, ovvero
+    // il blog di tutti i miei utenti seguiti
+    public Set<WinsomePost> showFeed(String username){
+        if ( username == null )
+            return null;
+
+        Set<WinsomePost> feed = new HashSet<WinsomePost>();
+        Set<String> following = users.get(username).getFollowing();
+        for ( String user : following )
+            feed.addAll(viewBlog(user));
+
+        return feed;
+    }
+
+    public WinsomePost showPost(int idPost){
+        if ( idPost < 0 )
+            return null;
+
+        return posts.get(idPost);
+    }
+
+    public boolean deletePost(String username, int idPost){
+        if ( idPost < 0 || username == null )
+            return false;
+
+        WinsomePost toRemove = posts.get(idPost);
+        WinsomeUser author = users.get(toRemove.getAuthor());
+
+        // Se l'utente che ha richiesto la delete non è l'autore del post
+        if ( author == null || !toRemove.getAuthor().equals(username) || !author.equals(users.get(username)) )
+            return false;
+
+        // Se l'eliminazione va a buon fine
+        if ( author.removePost(toRemove) )
+            if ( posts.remove(idPost) != null )
+                return true;
+
+        return false;
+    }
+
+    public boolean rewinPost(String username, int idPost){
+        if ( idPost < 0 || username == null )
+            return false;
+
+        // Posso fare il rewind di un post solo se è nel mio feed
+        if ( showFeed(username).contains(posts.get(idPost)) )
+            if ( users.get(username).addRewin(idPost) )
+                if ( posts.get(idPost).rewinPost(username) )
+                    return true;
+
+        return false;
+    }
+
+    public boolean ratePost(String username, int idPost, int vote){
+        if ( idPost < 0 || username == null )
+            return false;
+
+        // Posso fare il rate di un post solo se è nel mio feed
+        if ( showFeed(username).contains(posts.get(idPost)) )
+            if ( posts.get(idPost).addVote(username, vote) )
+                return true;
+
+        return false;
+    }
+
+    public boolean addComment(String username, int idPost, String comment){
+        if ( idPost < 0 || username == null || comment == null )
+            return false;
+
+        // Posso commentare un post solo se è nel mio feed
+        if ( showFeed(username).contains(posts.get(idPost)) )
+            if ( posts.get(idPost).addComment(username, comment) )
+                return true;
+        
+        return false;
+    }
+
+    public Double getWallet(String username){
+        if ( username == null )
+            return 0.0;
+
+        return users.get(username).getReward();
+    }
+
+    public double getWalletInBitcoin(String username){
+        if ( username == null )
+            return 0.0;
+
+        // TODO
+        return 0.0;
+    }
+
+
+
+
+
+
+
+
+    public boolean updateReward(Map<String, Double> rewardPerUser){
+        // TODO
+
+        return true;
+    }
+
+    public synchronized WinsomeDB getCopy(){
+        // TODO
+
+        return this;
+    }
 
     // Restituisce una deep copy dei post pubblicati dall'utente
     public Set<WinsomePost> getPostPerUser(String user){
