@@ -4,10 +4,11 @@
     "psw": "pass",
     "follower": [
       "Chiara",
-      "Luca"
+      "Luca",
+      "NewFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "uno",
       "due"
@@ -46,10 +47,11 @@
     "nickname": "ciao",
     "psw": "$2a$10$iGVFJBx7Dt0vGl7JVPTmGuxGQ1dCbf7jCZag/XM2euVwmBrDWWS.K",
     "follower": [
-      "UnFollower"
+      "UnFollower",
+      "NewFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a"
     ],
@@ -105,6 +107,172 @@
   "nuovo": {
     "nickname": "nuovo",
     "psw": "$2a$10$LsPtGUtdpK3duGQ0lm68P.us/AQdLrpsxjj1DkwKPEB2qdY7pnHiW",
+    "follower": [
+      "NewFollower",
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "perche": {
+    "nickname": "perche",
+    "psw": "$2a$10$c.HpJ0kpmj1WvifjHqed0uhDQnxxVSYG8UOhBc.fSJbHY2g1yEuTS",
+    "follower": [
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": false,
+    "tags": [
+      "a"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "ecco": {
+    "nickname": "ecco",
+    "psw": "$2a$10$zuNuyt2a0oWd91iYW6vT4ONcjWGtEYQksXjDt.lUIQ.SKoGUGIURC",
+    "follower": [
+      "NewFollower",
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "altra": {
+    "nickname": "altra",
+    "psw": "$2a$10$Eu0VI44o5ITPAX3RKFpf0ucb0ytWo/bFK98Hdjtz.tWC5Jwy9bQwC",
+    "follower": [
+      "NewFollower",
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "chiara": {
+    "nickname": "chiara",
+    "psw": "$2a$10$2zFqWwsZdf1YudAnBviCQ.I4aQP4Tr6CrnQcaD70OvopTOzBWuXcG",
+    "follower": [
+      "NewFollower",
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "tizia": {
+    "nickname": "tizia",
+    "psw": "$2a$10$Pe2/.7nzKfsMY0dgMsNXS.zN3kcf7ifaf7S9AUSvx0t7KxD1FVEEO",
+    "follower": [
+      "NewFollower",
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "uff": {
+    "nickname": "uff",
+    "psw": "$2a$10$Yp.ZT6S4XeHwJCVSdtLl/eHC8lWWPY.yqQ9GDxfYXpxTR8A3afkxS",
+    "follower": [
+      "NewFollower",
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a",
+      "uno",
+      "tag"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "e": {
+    "nickname": "e",
+    "psw": "$2a$10$A/v0Lfa2B9Xx6Sl7TjRP7O8teLNdYgJQS9KLcwtcQty.Kou84aEI.",
+    "follower": [
+      "NewFollower",
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a",
+      "uno",
+      "tag"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "eeeeh": {
+    "nickname": "eeeeh",
+    "psw": "$2a$10$3tmpLgnMybO9HAEOAC0.1uup5fy5/YpVaNCw/C0mgM7ybFdh45oFG",
+    "follower": [
+      "NewFollower",
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a",
+      "uno",
+      "tag"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "oh": {
+    "nickname": "oh",
+    "psw": "$2a$10$zKZJYaSDRRJM.j2U2Lh9sO7ik/N43qnjXNnHyHZp8e8JZBtpj1xBq",
+    "follower": [
+      "UnFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "a",
+      "uno",
+      "tag"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "anna": {
+    "nickname": "anna",
+    "psw": "$2a$10$Bv1xxewL0tFoZXHNdEhnxemK/Xq8Owp72eXc1fXtRVdfozxca/BDq",
     "follower": [
       "NewFollower",
       "UnFollower"

@@ -22,17 +22,19 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
     public boolean register(String username, String password, Set<String> tags)
     throws RemoteException {
         try{
+            for ( String tag : tags )
+                tag.toLowerCase();
             WinsomeUser newUser = new WinsomeUser(username, password, tags);
             if ( db.addUser(newUser) ){
                 if ( DEBUG ) System.out.println("RMIService: Aggiunto nuovo utente \"" + newUser.toString() + "\" a Winsome");
             }
-
+/*
             if ( DEBUG ){
                 // Aggiungo follower fittizi
                 // db.getUsers().get(username).addFollower("UnFollower");
                 db.addFollower(username, "UnFollower");
             }
-
+*/
             return true; // db.addUser(newUser);
         } catch ( Exception e ){
             return false;

@@ -7,7 +7,6 @@ import shared.ClientNotifyInterface;
 
 // Classe che serve al server per mandare la notifica al client (per effettuare la callback)
 public class ClientNotify extends UnicastRemoteObject implements ClientNotifyInterface {
-    private final static boolean DEBUG = true;
 
     private String username;
 
@@ -23,8 +22,7 @@ public class ClientNotify extends UnicastRemoteObject implements ClientNotifyInt
 
     public boolean notify(String notify)
     throws RemoteException{
-        if ( DEBUG ) System.out.println("Ricevuta una notifica \""+ notify +"\"");
-
+        // TODO aggiungere o togliere un utente alla lista dei follower lato client
 
         return true;
     }

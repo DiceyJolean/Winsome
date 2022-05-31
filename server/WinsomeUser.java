@@ -185,7 +185,7 @@ public class WinsomeUser implements Serializable {
      * Effettua il logout dell'utente
     */
     public boolean logout(){
-        if ( loggedIn == true )
+        if ( !loggedIn )
             return false;
 
         this.loggedIn = false;

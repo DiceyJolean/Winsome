@@ -37,14 +37,15 @@ public class ClientMain {
 
     private static Socket socket = null;
     private static int rmiPort = 0;
-    private static String rmiServiceName = null;
+    private static String rmiServiceName;
 
-    private static String thisUser = null; // Nick dell'utente che si logga utilizzando questo client
+    private static String thisUser = ""; // Nick dell'utente che si logga utilizzando questo client
     private static boolean logged = false;
     private static BufferedReader in = null;
     private static PrintWriter out = null;
     private static Set<String> followers = null;
     private static RMIServiceInterface serviceRMI = null;
+    private static RewardUpdater rewardUpdater = null;
     private static ClientNotify stub = null;
 
     public static void main(String[] args){
@@ -130,7 +131,16 @@ public class ClientMain {
             e.printStackTrace();
             System.exit(1);
         }
-        
+
+        // Iscrizione al gruppo di multicast per l'aggiornamento delle ricompense
+        try{
+            rewardUpdater = new RewardUpdater(multicastAddress, multicastPort);
+            rewardUpdater.run();
+        } catch ( Exception e ){
+            System.err.println("Errore durante la connessione al servizio di multicast per le ricompense " + e.getMessage());
+            System.exit(1);
+        }
+
         // Parsing delle richieste da riga di comando
         try (
             BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
@@ -181,10 +191,7 @@ public class ClientMain {
                         String psw = new String(req[2]);
                         
                         try{
-                            if ( login(thisUser, psw) ){
-                                if ( DEBUG ) System.out.println("CLIENT: login effettuato con successo");
-                            }
-                            else{
+                            if ( !login(thisUser, psw) ){
                                 // TODO errore nel login
                                 System.err.println("CLIENT: Errore durante la fase di login");
                             }
@@ -401,7 +408,7 @@ public class ClientMain {
                         }
                         String user = new String(req[1]);
 
-                        unfollow(user);
+                        unfollowUser(user);
                         break;
                     }
                     default:{
@@ -410,7 +417,13 @@ public class ClientMain {
                     }
                 }
             }
+
             System.out.println("Chiusura del client");
+            // TODO ci saranno delle operazioni di cleanup da dover fare?
+            
+            // Ad esempio la logout? 
+            logout(thisUser); // mi importa controllare il valore di ritorno?
+            rewardUpdater.stop();
             socket.close();
         } catch ( IOException e ){
             System.err.println(e.getMessage());
@@ -426,7 +439,7 @@ public class ClientMain {
         try{
             Registry registry = LocateRegistry.getRegistry(rmiPort);
             serviceRMI = ( RMIServiceInterface ) registry.lookup(rmiServiceName);
-            stub = new ClientNotify(username);
+            
             if ( DEBUG ) System.out.println("CLIENT: Mi iscrivo a Winsome");
 
             return serviceRMI.register(username, password, tags);
@@ -448,22 +461,22 @@ public class ClientMain {
         System.out.println("LOGIN\t username: " + username + ", password: " + password);
         if ( thisUser == null || logged ){
             // Questo utente ha già effettuato il login (con questo client)
-            System.out.println("CLIENT: È già stato effettuato il login con l'utente " + thisUser);
+            System.out.println("LOGIN fallita: è già stato effettuato il login con l'utente " + thisUser + " con questo client");
             return false;
         }
 
         // La fase di login viene fatta tramite connessione TCP
-        String request = "LOGIN\n" + username + "\n" + password;
+        String request = Operation.LOGIN + "\n" + username + "\n" + password;
 
         try{
             out.println(request);
             System.out.println("CLIENT: Ho inviato la richiesta al server");
-            String status = in.readLine();
-            System.out.println("Leggo " + status);
-            logged = Boolean.parseBoolean(status);
+            String reply = in.readLine();
+            in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+            logged = reply.equals(Communication.success) ? true : false;
+            
             if ( !logged ){
-                // Il messaggio di errore è il secondo token di reply
-                System.out.println(in.readLine());
+                System.out.println("LOGIN fallita: " + reply);
                 return false;
             }
 
@@ -471,10 +484,20 @@ public class ClientMain {
             
             // se il login ha avuto successo, il client si registra al servizio di callback tramite RMI
             try{
+                if ( serviceRMI == null ){
+                    // L'utente si è registrato su un client diverso da questo dove sta effettuando il login
+                    Registry registry = LocateRegistry.getRegistry(rmiPort);
+                    serviceRMI = ( RMIServiceInterface ) registry.lookup(rmiServiceName);
+                }
+                
+                stub = new ClientNotify(username);
                 followers = serviceRMI.registerForCallback(stub);
                             
                 if ( DEBUG ) System.out.println("CLIENT: Mi registro al servizio di notifica");
                 // if ( DEBUG ) System.out.println("CLIENT: I miei follower sono: " + followers.toString());
+            } catch ( NotBoundException e ){
+                // Errore del server (non dell'utente), è ragionevole terminare TODO
+                return false;
             } catch (RemoteException e ){
                 e.printStackTrace();
                 return false;
@@ -488,33 +511,72 @@ public class ClientMain {
     }
 
     public static boolean logout(String username){
-        System.out.println("LOGOUT\t username: " + username);
-        if ( !username.equals(thisUser) )
+        if ( !username.equals(thisUser) ){
             // Voglio evitare inconsistenze, vale anche nel caso in cui thisUser sia null
+            System.err.println("LOGOUT fallita: l'utente " + username + " non si è loggato utilizzando questo client");
             return false;
-        
-        if ( !logged )
+        }
+        if ( !logged ){
             // Questo utente non aveva effettuato il login (con questo client)
-            return false;
-
-        // La fase di logout viene fatta tramite connessione TCP
-
-
-        logged = false;
-        thisUser = null;
-        // Finita la fase di login su Winsome, il client si registra al servizio di callback
-        try{
-            serviceRMI.unregisterForCallback(stub);
-            if ( DEBUG ) System.out.println("CLIENT: Mi cancello dal servizio di notifica");
-        } catch (RemoteException e ){
+            System.err.println("LOGOUT fallita: Nessun utente si era loggato con questo client");
             return false;
         }
 
+        // La fase di logout viene fatta tramite connessione TCP
+        String request = Operation.LOGOUT + "\n" + username;
+        try{
+            out.println(request);
+
+            String reply = in.readLine();
+            in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+            logged =  reply.equals(Communication.success) ? false : true;
+            
+            if ( logged ){
+                System.out.println("Logout fallita: " + reply);
+                return false;
+            }
+            thisUser = null;
+
+            // Finita la fase di logout su Winsome, il client si cancella dal servizio di callback
+            try{
+                serviceRMI.unregisterForCallback(stub);
+                if ( DEBUG ) System.out.println("CLIENT: Mi cancello dal servizio di notifica");
+            } catch (RemoteException e ){
+                if ( DEBUG ) e.printStackTrace();
+                else e.getMessage();
+                return false;
+            }
+        } catch ( IOException e ){
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
+
+        System.err.println("LOGOUT eseguita con successo");
         return true;
     }
 
     public static boolean listUsers(){
-        System.out.println("LIST_USERS");
+        // Preparo la richiesta nel formato che il server riesce a leggere
+        String request = Operation.LIST_USERS + "\n" + thisUser;
+        try{
+            out.println(request);
+
+            String reply = in.readLine();
+            if ( !reply.equals(Communication.success) ){
+                System.err.println("LIST_USERS fallita: " + reply);
+                in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+                return false;
+            }
+
+            // Stampo a video gli utenti con almeno un tag in comune a thisUser
+            System.out.println(in.readLine());
+
+        } catch ( IOException e ){
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
 
         return true;
     }
@@ -527,73 +589,309 @@ public class ClientMain {
     }
 
     public static boolean listFollowing(){
-        System.out.println("LIST_FOLLOWING");
+
+        String request = Operation.LIST_FOLLOWING + "\n" + thisUser;
+        try{
+            out.println(request);
+
+            String reply = in.readLine();
+            if ( !reply.equals(Communication.success) ){
+                System.err.println(Operation.LIST_FOLLOWING + " fallita: " + reply);
+                in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+                return false;
+            }
+
+            // Stampo a video la lista degli utenti che thisUser segue
+            System.out.println(in.readLine());
+
+        } catch ( IOException e ){
+            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
 
         return true;
     }
 
     public static boolean followUser(String idUser){
-        System.out.println("FOLLOW_USER\t idUser: " + idUser);
+        
+        String request = Operation.FOLLOW_USER + "\n" + thisUser + "\n" + idUser;
+        try{
+            out.println(request);
+            String reply = in.readLine();
+            in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
 
+            if ( !reply.equals(Communication.success) ){
+                System.err.println("FOLLOW_USER fallita: " + reply);
+                return false;
+            }
+
+        } catch ( IOException e ){
+            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
+
+        System.out.println("FOLLOW_USER eseguita con successo");
         return true;
     }
 
-    public static boolean unfollow(String idUser){
-        System.out.println("UNFOLLOW\t idUSer: " + idUser);
-        
+    public static boolean unfollowUser(String idUser){
+
+        String request = Operation.UNFOLLOW_USER + "\n" + thisUser + "\n" + idUser;
+        try{
+            out.println(request);
+            String reply = in.readLine();
+            in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+
+            if ( !reply.equals(Communication.success) ){
+                System.err.println("UNFOLLOW_USER fallita: " + reply);
+                return false;
+            }
+
+        } catch ( IOException e ){
+            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
+
+        System.out.println("UNFOLLOW_USER eseguita con successo");
         return true;
     }
 
     public static boolean viewBlog(){
         System.out.println("VIEW_BLOG");
 
+        String request = Operation.VIEW_BLOG + "\n" + thisUser;
+        try{
+            out.println(request);
+            String reply = in.readLine();
+            if ( !reply.equals(Communication.success) ){
+                System.err.println("VIEW_BLOG fallita: " + reply);
+                in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+                return false;
+            }
+
+            // Stampo a video il blog di thisUser
+            System.out.println(in.readLine());
+
+        } catch ( IOException e ){
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
+
         return true;
     }
 
     public static boolean createPost(String title, String content){
-        System.out.println("CREATE_POST\t title: " + title + ", content: " + content);
 
+        String request = Operation.CREATE_POST + "\n" + thisUser + "\n" + title + "\n" + content;
+        try{
+            out.println(request);
+            String reply = in.readLine();
+            in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+
+            if ( !reply.equals(Communication.success) ){
+                System.err.println("CREATE_POST fallita: " + reply);
+                return false;
+            }
+
+        } catch ( IOException e ){
+            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
+
+        System.out.println("CREATE_POST eseguita con successo");
         return true;
     }
 
     public static boolean showFeed(){
-        System.out.println("SHOW_FEED");
+
+        String request = Operation.SHOW_FEED + "\n" + thisUser;
+        try{
+            out.println(request);
+
+            String reply = in.readLine();
+            if ( !reply.equals(Communication.success) ){
+                System.err.println(Operation.SHOW_FEED + " fallita: " + reply);
+                in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+                return false;
+            }
+
+            // Stampo a video il feed di thisUser
+            System.out.println(in.readLine());
+
+        } catch ( IOException e ){
+            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
 
         return true;
     }
 
     public static boolean showPost(int idPost){
-        System.out.println("SHOW_POST\t idPost: " + idPost);
+
+        String request = Operation.SHOW_POST + "\n" + thisUser + "\n" + idPost;
+        try{
+            out.println(request);
+
+            String reply = in.readLine();
+            if ( !reply.equals(Communication.success) ){
+                System.err.println(Operation.SHOW_POST + " fallita: " + reply);
+                in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+                return false;
+            }
+
+            // Stampo a video il post richiesto
+            System.out.println(in.readLine());
+
+        } catch ( IOException e ){
+            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
 
         return true;
     }
 
     public static boolean deletePost(int idPost){
-        System.out.println("DELETE_POST\t idPost: " + idPost);
 
+        String request = Operation.DELETE_POST + "\n" + thisUser + "\n" + idPost;
+        try{
+            out.println(request);
+            String reply = in.readLine();
+            in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+
+            if ( !reply.equals(Communication.success) ){
+                System.err.println(Operation.DELETE_POST + " fallita: " + reply);
+                return false;
+            }
+
+        } catch ( IOException e ){
+            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
+
+        System.out.println(Operation.DELETE_POST + " eseguita con successo");
         return true;
     }
 
     public static boolean rewinPost(int idPost){
-        System.out.println("REWIN_POST\t idPost: " + idPost);
 
+        String request = Operation.REWIN_POST + "\n" + thisUser + "\n" + idPost;
+        try{
+            out.println(request);
+            String reply = in.readLine();
+            in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+
+            if ( !reply.equals(Communication.success) ){
+                System.err.println(Operation.REWIN_POST + " fallita: " + reply);
+                return false;
+            }
+
+        } catch ( IOException e ){
+            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
+
+        System.out.println(Operation.REWIN_POST + " eseguita con successo");
         return true;
     }
 
     public static boolean ratePost(int idPost, int vote){
-        System.out.println("RATE_POST\t idPost: " + idPost + ", vote: " + vote);
 
+        String request = Operation.RATE_POST + "\n" + thisUser + "\n" + idPost + "\n" + vote;
+        try{
+            out.println(request);
+            String reply = in.readLine();
+            in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+
+            if ( !reply.equals(Communication.success) ){
+                System.err.println(Operation.RATE_POST + " fallita: " + reply);
+                return false;
+            }
+
+        } catch ( IOException e ){
+            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
+
+        System.out.println(Operation.RATE_POST + " eseguita con successo");
         return true;
     }
 
     public static boolean addComment(int idPost, String content){
-        System.out.println("ADD_COMMENT\t idPost: " + idPost + ", content: " + content);
 
+        String request = Operation.ADD_COMMENT + "\n" + thisUser + "\n" + idPost + "\n" + content;
+        try{
+            out.println(request);
+            String reply = in.readLine();
+            in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+
+            if ( !reply.equals(Communication.success) ){
+                System.err.println(Operation.ADD_COMMENT + " fallita: " + reply);
+                return false;
+            }
+
+        } catch ( IOException e ){
+            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
+
+        System.out.println(Operation.ADD_COMMENT + " eseguita con successo");
         return true;
     }
 
     public static boolean getWallet(){
-        System.out.println("GET_WALLET");
+
+        String request = Operation.GET_WALLET + "\n" + thisUser;
+        try{
+            out.println(request);
+
+            String reply = in.readLine();
+            if ( !reply.equals(Communication.success) ){
+                System.err.println(Operation.GET_WALLET + " fallita: " + reply);
+                in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+                return false;
+            }
+
+            // Stampo a video il wallet di thisUser
+            System.out.println(in.readLine());
+
+        } catch ( IOException e ){
+            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
 
         return true;
     }
@@ -601,8 +899,30 @@ public class ClientMain {
     public static boolean getWalletBitcoin(){
         System.out.println("GET_WALLET_BITCOIN");
 
+        String request = Operation.GET_WALLET_BITCOIN + "\n" + thisUser;
+        try{
+            out.println(request);
+
+            String reply = in.readLine();
+            if ( !reply.equals(Communication.success) ){
+                System.err.println(Operation.GET_WALLET_BITCOIN + " fallita: " + reply);
+                in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
+                return false;
+            }
+
+            // Stampo a video il wallet in bitcoin di thisUser
+            System.out.println(in.readLine());
+
+        } catch ( IOException e ){
+            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
+            if ( DEBUG ) e.printStackTrace();
+            else e.getMessage();
+            return false;
+        }
+
         return true;
-        }    
+    }
 
     public static void helpMessage(){
         System.out.println(

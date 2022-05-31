@@ -23,8 +23,8 @@ public class WinsomeDB implements Serializable {
     private Map<String, Set<String>> tags;
 
     public WinsomeDB(){
-        this.posts = new ConcurrentHashMap<Integer, WinsomePost>();
-        this.users = new ConcurrentHashMap<String, WinsomeUser>();
+        this.posts = new ConcurrentHashMap<Integer, WinsomePost>(); // TODO
+        this.users = new ConcurrentHashMap<String, WinsomeUser>(); // Ok per la putIfAbsent visto che la register è una sezione critica
         // Non è concurrent perché soltanto il main del server vi accede
         // In scrittura all'inserimento di un nuovo utente, in lettura alla richiesta di listUsers
         this.tags = new HashMap<String, Set<String>>();
@@ -44,10 +44,13 @@ public class WinsomeDB implements Serializable {
         // Aggiorno la struttura dei tags
         Set<String> userTags = user.getTags();
         for ( String tag : userTags ){
+            tag.toLowerCase();
             // Se non era presente lo aggiungo
-            tags.putIfAbsent(tag, new HashSet<String>());
-            // Poi aggiungo l'utente all'insieme di quelli che hanno indicato quel tag
-            tags.get(tag).add(user.getNickname());
+            synchronized ( tags ){
+                tags.putIfAbsent(tag, new HashSet<String>());
+                // Poi aggiungo l'utente all'insieme di quelli che hanno indicato quel tag
+                tags.get(tag).add(user.getNickname());
+            }
         }
 
 
@@ -123,6 +126,8 @@ public class WinsomeDB implements Serializable {
             // Per ogni tag aggiungo all'insieme degli utenti con un tag in comune gli utenti presenti nel campo value della struttura dei tags
             usersWithTagInCommon.addAll(tags.get(tag));
 
+        // Tolgo dall'insieme l'utente che ha fatto la richiesta
+        usersWithTagInCommon.remove(username);
         return usersWithTagInCommon;
     }
 
@@ -316,13 +321,19 @@ public class WinsomeDB implements Serializable {
             return false;
 
         this.users = users;
-        for ( WinsomeUser user : this.users.values() )
+        for ( WinsomeUser user : this.users.values() ){
             for ( WinsomePost post : user.getPosts() )
                 addPost(post);
+            for ( String tag : user.getTags() ){
+                tags.putIfAbsent(tag, new HashSet<String>());
+                // Poi aggiungo l'utente all'insieme di quelli che hanno indicato quel tag
+                tags.get(tag).add(user.getNickname());
+            }
+        }
 
         return true;
     }
-
+/*
     public boolean addFollower(String user, String follower){
         try{
             return this.users.get(user).addFollower(follower);
@@ -330,7 +341,7 @@ public class WinsomeDB implements Serializable {
             return false;
         }
     }
-
+*/
     // TODO deve restituire una copia
     public WinsomeDB getDBCopy(){
 

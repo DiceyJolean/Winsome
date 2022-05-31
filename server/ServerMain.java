@@ -15,6 +15,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -32,6 +33,7 @@ public class ServerMain {
     private static String filename = null;
     private static String rmiServiceName = null;
     private static WinsomeDB database = null;
+    private static RMIServiceInterface stub = null;
     private static int multicastPort = -1;
     private static int tcpPort = -1;
     private static int rmiPort = -1;
@@ -42,91 +44,91 @@ public class ServerMain {
     private static String processRequest(String request){
         String reply = ""; // Messaggio di risposta da inviare al client
         boolean status = false; // Esito dell'operazione
-        String description = "Success"; // Descrizione dell'esito dell'operazione
+        String description = Communication.success; // Descrizione dell'esito dell'operazione
         String attr = ""; // Eventuali attributi da restituire al client
         
         // La richiesta è nel formato OPERATION\nUSERNAME\nATTRIBUTI
         String[] token = request.split("\n");
 
-        String operation = new String(token[0]);
+        // String operation = new String(token[0]);
+        Operation operation = Operation.valueOf(new String(token[0]));
         String user = new String(token[1]);
 
         if ( DEBUG ) System.out.println("SERVER: Processo la richiesta di " + operation + " dell'utente " + user);
 
         try{
             switch ( operation ){
-                case "ADD_COMMENT":{
+                case ADD_COMMENT:{
                     status = database.addComment(user, Integer.parseInt(token[2]), token[3]);
-                    
                     break;
                 }
-                case "ADD_FOLLOWER":{
-                    status = database.addFollower(user, token[2]);
-                    break;
-                }
-                case "CREATE_POST":{
+                case CREATE_POST:{
                     status = database.createPost(user, token[2], token[3]);
                     break;
                 }
-                case "DELETE_POST":{
+                case DELETE_POST:{
                     status = database.deletePost(user, Integer.parseInt(token[2]));
                     break;
                 }
-                case "FOLLOW_USER":{    
+                case FOLLOW_USER:{    
                     status = database.followUser(user, token[2]);
+                    // TODO devo mandare la notifica di callback
+                    stub.doCallback(user, "Un utente ha iniziato a seguirti ("+ token[2]+")\n");
                     break;
                 }
-                case "GET_WALLET":{
+                case GET_WALLET:{
                     attr = database.getWallet(user).toString();
                     status = true;
                     break;
                 }
                 // status = database.getWalletInBitcoin(user); TODO 
-                case "LIST_FOLLOWING":{
-                    attr = database.listFollowing(user).toArray().toString();
+                case LIST_FOLLOWING:{
+                    attr = Arrays.toString( database.listFollowing(user).toArray() );
                 
                     status = true;
                     break;
                 }
-                case "LIST_USERS":{
-                    attr = database.listUsers(user).toArray().toString();
+                case LIST_USERS:{
+                    attr = Arrays.toString(database.listUsers(user).toArray());
                     status = true;
                     break;
                 }
-                case "LOGIN":{
+                case LOGIN:{
                     status = database.login(user, token[2]);
                     
                     break;
                 }
-                case "LOGOUT":{
+                case LOGOUT:{
                     status = database.logout(user);
                     
                     break;
                 }
-                case "RATE_POST":{
+                case RATE_POST:{
                     status = database.ratePost(user, Integer.parseInt(token[2]), Integer.parseInt(token[3]));
                     break;
                 }
-                case "REWIN_POST":{
+                case REWIN_POST:{
                     status = database.rewinPost(user, Integer.parseInt(token[2]));
                     break;
                 }
-                case "SHOW_FEED":{
-                    attr = database.showFeed(user).toArray().toString();
+                case SHOW_FEED:{
+                    attr = Arrays.toString( database.showFeed(user).toArray() );
                     status = true;
                     break;
                 }
-                case "SHOW_POST":{
+                case SHOW_POST:{
                     attr = database.showPost(Integer.parseInt(token[2])).toPrint();
                     status = true;
                     break;
                 }
-                case "UNFOLLOW_USER":{
+                case UNFOLLOW_USER:{
                     status = database.unfollowUser(user, token[2]);
+                    // TODO devo mandare la notifica di callback
+                    stub.doCallback(user, "Un utente ha smesso di seguirti ("+ token[2]+")\n");
                     break;
                 }
-                case "VIEW_BLOG":{
-                    attr = database.viewBlog(user).toArray().toString();
+                case VIEW_BLOG:{
+                    attr = Arrays.toString( database.viewBlog(user).toArray() );
                     status = true;
                     break;
                 }
@@ -143,7 +145,7 @@ public class ServerMain {
             description = e.getMessage();
             e.printStackTrace();
         } finally {
-            reply = status + "\n" + description + "\n" + attr.toString();
+            reply = description + "\n" + attr.toString() + "\n";
         }            
 
         if ( DEBUG ) System.out.println("SERVER: Restituisco " + reply + " da processRequest");
@@ -267,7 +269,7 @@ public class ServerMain {
         try {
             WinsomeRMIService serviceRMI = new WinsomeRMIService(database);
             // Rappresentante del servizio che deve essere reperito in qualche modo dal client
-            RMIServiceInterface stub = ( RMIServiceInterface ) UnicastRemoteObject.exportObject(serviceRMI, 0);
+            stub = ( RMIServiceInterface ) UnicastRemoteObject.exportObject(serviceRMI, 0);
             LocateRegistry.createRegistry(rmiPort);
             Registry r = LocateRegistry.getRegistry(rmiPort);
             r.rebind(rmiServiceName, stub);
@@ -409,6 +411,7 @@ public class ServerMain {
                         if ( byteWrote == reply.toString().length() ){
                             // Ho scritto tutto
                             if ( DEBUG ) System.out.println("SERVER: Ho inviato la risposta al client\n");
+                            key.attach(null); // Resetto l'attchament, altrimenti ritrovo la reply in allegato quando vado a leggere la prossima richiesta di questo client
                             key.interestOps(SelectionKey.OP_READ);                            
                         }
                         // TODO se non ho scritto tutto? Limit e position saranno nella giusta posizione per la prossima scrittura
