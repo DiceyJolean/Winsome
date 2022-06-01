@@ -6,6 +6,9 @@ import java.rmi.RemoteException;
 // TODO, questa classe serve?
 public interface ClientNotifyInterface extends Remote {
     
+    public static final String FOLLOW = "FOLLOW";
+    public static final String UNFOLLOW = "UNFOLLOW";
+
     public abstract String getUser()
     throws RemoteException;
 

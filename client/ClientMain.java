@@ -501,7 +501,7 @@ public class ClientMain {
                     serviceRMI = ( RMIServiceInterface ) registry.lookup(rmiServiceName);
                 }
                 
-                stub = new ClientNotify(username);
+                stub = new ClientNotify(username, followers);
                 followers = serviceRMI.registerForCallback(stub);
                             
                 if ( DEBUG ) System.out.println("CLIENT: Mi registro al servizio di notifica");

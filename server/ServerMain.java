@@ -57,7 +57,7 @@ public class ServerMain {
         try{
             switch ( operation ){
                 case ADD_COMMENT:{
-                    description = database.addComment(user, Integer.parseInt(token[2]), token[3]) ? Communication.success : "";
+                    description = database.addComment(user, Integer.parseInt(token[2]), token[3]) ? Communication.success : "NO";
                     break;
                 }
                 case CREATE_POST:{
@@ -68,10 +68,11 @@ public class ServerMain {
                     description = database.deletePost(user, Integer.parseInt(token[2])) ? Communication.success : "NO";
                     break;
                 }
-                case FOLLOW_USER:{    
+                case FOLLOW_USER:{
+                    // user inizia a seguire
                     description = database.followUser(user, token[2]) ? Communication.success : "NO";
-                    // TODO devo mandare la notifica di callback
-                    stub.doCallback(user, "Un utente ha iniziato a seguirti ("+ token[2]+")\n");
+                    // notifico all'utente che viene seguito che user ha iniziato a seguirlo
+                    stub.doCallback(token[2], "FOLLOW;" + user +";");
                     break;
                 }
                 case GET_WALLET:{
@@ -112,9 +113,10 @@ public class ServerMain {
                     break;
                 }
                 case UNFOLLOW_USER:{
+                    // user smette di seguire
                     description = database.unfollowUser(user, token[2]) ? Communication.success : "NO";
                     // TODO devo mandare la notifica di callback
-                    stub.doCallback(user, "Un utente ha smesso di seguirti ("+ token[2]+")\n");
+                    stub.doCallback(token[2], "UNFOLLOW;" + user +";");
                     break;
                 }
                 case VIEW_BLOG:{

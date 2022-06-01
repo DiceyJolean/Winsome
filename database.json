@@ -50,7 +50,7 @@
       "UnFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a"
     ],
@@ -274,10 +274,13 @@
     "nickname": "erica",
     "psw": "$2a$10$bEBL05EeJszumRjsEyas/OMdWJ/3meOvQfTMN9L8rKWBbOc41CS.S",
     "follower": [
-      "NewFollower"
+      "NewFollower",
+      "bene"
     ],
-    "following": [],
-    "loggedIn": true,
+    "following": [
+      "bene"
+    ],
+    "loggedIn": false,
     "tags": [
       "che",
       "piace",
@@ -332,7 +335,9 @@
     "follower": [
       "erica"
     ],
-    "following": [],
+    "following": [
+      "erica"
+    ],
     "loggedIn": false,
     "tags": [
       "uffa"

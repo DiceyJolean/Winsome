@@ -61,6 +61,7 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
 
     public boolean doCallback(String user, String notify)
     throws RemoteException {
+        // Cerco lo stub dell'utente che dovrà ricevere la notifica
         for ( ClientNotifyInterface stub : clients )
             // Ok equals perché estendo RemoteObject
             if ( stub.getUser().equals(user) ){
@@ -70,6 +71,10 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
                 stub.notify(notify);
                 return true;
             }
+        /**
+         * se user non è connesso la notifica non verrà inviata
+         * perché non si è ancora registrato alle callback, o si è de-registrato al logout
+         */
         
         return false;        
     }

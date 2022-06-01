@@ -95,10 +95,37 @@ public class WinsomeDB implements Serializable {
     */
 
     public boolean followUser(String user, String toFollow){
+        // user inizia a seguire toFollow
+
         if ( user == null || toFollow == null )
             return false;
 
-        return users.get(user).addFollower(toFollow);
+        WinsomeUser follower = users.get(user); // Chi segue
+        if ( follower == null )
+            return false;
+
+        WinsomeUser followed = users.get(toFollow); // Chi viene seguito
+        if ( followed == null )
+            return false;
+
+        return follower.addFollowing(toFollow) || followed.addFollower(user);
+    }
+    
+    public boolean unfollowUser(String user, String toUnfollow){
+        // user smette di seguire toUnfollow
+
+        if ( user == null || toUnfollow == null )
+            return false;
+
+        WinsomeUser follower = users.get(user); // Chi segue
+        if ( follower == null )
+            return false;
+
+        WinsomeUser followed = users.get(toUnfollow); // Chi viene seguito
+        if ( followed == null )
+            return false;
+
+        return followed.removeFollower(toUnfollow) || follower.removeFollowing(user);
     }
 
     public Set<String> listUsers(String username){
@@ -148,13 +175,6 @@ public class WinsomeDB implements Serializable {
         }
 
         return toLogout.logout();
-    }
-    
-    public boolean unfollowUser(String user, String toUnfollow){
-        if ( user == null || toUnfollow == null )
-            return false;
-
-        return users.get(user).removeFollower(toUnfollow);
     }
 
     // Post pubblicati e rewinnati dall'utente

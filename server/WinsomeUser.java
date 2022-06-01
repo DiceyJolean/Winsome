@@ -231,7 +231,8 @@ public class WinsomeUser implements Serializable {
         if ( user == null )
             throw new NullArgumentException();
         */
-        return this.following.remove(user);
+        follower.remove(user);
+        return true;
     }
 
     /**
@@ -241,12 +242,13 @@ public class WinsomeUser implements Serializable {
      * @return true se la rimozione ha avuto successo, false altrimenti
      * @throws NullArgumentException se user è null
      */
-    public boolean removeFollow(String user)
-    throws NullArgumentException {
+    public boolean removeFollowing(String user){
+    /* throws NullArgumentException {
         if ( user == null )
             throw new NullArgumentException();
-
-        return this.following.remove(user);
+    */
+        following.remove(user);
+        return true;
     }
 
     public boolean removePost(WinsomePost post){
