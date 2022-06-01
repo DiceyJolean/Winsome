@@ -13,6 +13,8 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -135,7 +137,8 @@ public class ClientMain {
         // Iscrizione al gruppo di multicast per l'aggiornamento delle ricompense
         try{
             rewardUpdater = new RewardUpdater(multicastAddress, multicastPort);
-            rewardUpdater.run();
+            Thread t = new Thread(rewardUpdater);
+            t.start();
         } catch ( Exception e ){
             System.err.println("Errore durante la connessione al servizio di multicast per le ricompense " + e.getMessage());
             System.exit(1);
@@ -210,7 +213,7 @@ public class ClientMain {
                             break;
                         }
                         */
-                        if ( logout(thisUser) ){
+                        if ( logout() ){
                             if ( DEBUG ) System.out.println("CLIENT: logout effettuato con successo");
                             
                         }
@@ -422,7 +425,7 @@ public class ClientMain {
             // TODO ci saranno delle operazioni di cleanup da dover fare?
             
             // Ad esempio la logout? 
-            logout(thisUser); // mi importa controllare il valore di ritorno?
+            if ( logged ) logout(); // mi importa controllare il valore di ritorno?
             rewardUpdater.stop();
             socket.close();
         } catch ( IOException e ){
@@ -430,6 +433,14 @@ public class ClientMain {
             System.exit(1);
         }
         System.exit(0);
+    }
+
+    private static String toRequest(ArrayList<String> args){
+        String req = "";
+        for ( String elem : args )
+            req = req + elem + ";";
+
+        return req;
     }
 
     public static boolean register(String username, String password, Set<String> tags){
@@ -466,7 +477,7 @@ public class ClientMain {
         }
 
         // La fase di login viene fatta tramite connessione TCP
-        String request = Operation.LOGIN + "\n" + username + "\n" + password;
+        String request = toRequest(new ArrayList<String>( Arrays.asList(Operation.LOGIN.toString(), username, password)));
 
         try{
             out.println(request);
@@ -510,20 +521,15 @@ public class ClientMain {
         return true;
     }
 
-    public static boolean logout(String username){
-        if ( !username.equals(thisUser) ){
-            // Voglio evitare inconsistenze, vale anche nel caso in cui thisUser sia null
-            System.err.println("LOGOUT fallita: l'utente " + username + " non si è loggato utilizzando questo client");
-            return false;
-        }
-        if ( !logged ){
+    public static boolean logout(){
+        if ( !logged || thisUser.equals("") ){
             // Questo utente non aveva effettuato il login (con questo client)
             System.err.println("LOGOUT fallita: Nessun utente si era loggato con questo client");
             return false;
         }
 
         // La fase di logout viene fatta tramite connessione TCP
-        String request = Operation.LOGOUT + "\n" + username;
+        String request = toRequest(new ArrayList<String>( Arrays.asList(Operation.LOGOUT.toString(), thisUser)));
         try{
             out.println(request);
 
@@ -558,7 +564,7 @@ public class ClientMain {
 
     public static boolean listUsers(){
         // Preparo la richiesta nel formato che il server riesce a leggere
-        String request = Operation.LIST_USERS + "\n" + thisUser;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.LIST_USERS.toString(), thisUser)));
         try{
             out.println(request);
 
@@ -590,7 +596,7 @@ public class ClientMain {
 
     public static boolean listFollowing(){
 
-        String request = Operation.LIST_FOLLOWING + "\n" + thisUser;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.LIST_FOLLOWING.toString(), thisUser)));
         try{
             out.println(request);
 
@@ -617,7 +623,7 @@ public class ClientMain {
 
     public static boolean followUser(String idUser){
         
-        String request = Operation.FOLLOW_USER + "\n" + thisUser + "\n" + idUser;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.FOLLOW_USER.toString(), thisUser, idUser)));
         try{
             out.println(request);
             String reply = in.readLine();
@@ -642,7 +648,7 @@ public class ClientMain {
 
     public static boolean unfollowUser(String idUser){
 
-        String request = Operation.UNFOLLOW_USER + "\n" + thisUser + "\n" + idUser;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.UNFOLLOW_USER.toString(), thisUser, idUser)));
         try{
             out.println(request);
             String reply = in.readLine();
@@ -666,9 +672,8 @@ public class ClientMain {
     }
 
     public static boolean viewBlog(){
-        System.out.println("VIEW_BLOG");
 
-        String request = Operation.VIEW_BLOG + "\n" + thisUser;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.VIEW_BLOG.toString(), thisUser)));
         try{
             out.println(request);
             String reply = in.readLine();
@@ -692,7 +697,7 @@ public class ClientMain {
 
     public static boolean createPost(String title, String content){
 
-        String request = Operation.CREATE_POST + "\n" + thisUser + "\n" + title + "\n" + content;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.CREATE_POST.toString(), thisUser, title, content)));
         try{
             out.println(request);
             String reply = in.readLine();
@@ -717,7 +722,7 @@ public class ClientMain {
 
     public static boolean showFeed(){
 
-        String request = Operation.SHOW_FEED + "\n" + thisUser;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.SHOW_FEED.toString(), thisUser)));
         try{
             out.println(request);
 
@@ -742,9 +747,9 @@ public class ClientMain {
         return true;
     }
 
-    public static boolean showPost(int idPost){
+    public static boolean showPost(Integer idPost){
 
-        String request = Operation.SHOW_POST + "\n" + thisUser + "\n" + idPost;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.SHOW_POST.toString(), thisUser, idPost.toString())));
         try{
             out.println(request);
 
@@ -755,8 +760,12 @@ public class ClientMain {
                 return false;
             }
 
+            String post = "", s = "";
+            while ( ( s = in.readLine() ) != null )
+                post = post + s;
+
             // Stampo a video il post richiesto
-            System.out.println(in.readLine());
+            System.out.println(post);
 
         } catch ( IOException e ){
             // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
@@ -769,9 +778,9 @@ public class ClientMain {
         return true;
     }
 
-    public static boolean deletePost(int idPost){
+    public static boolean deletePost(Integer idPost){
 
-        String request = Operation.DELETE_POST + "\n" + thisUser + "\n" + idPost;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.DELETE_POST.toString(), thisUser, idPost.toString())));
         try{
             out.println(request);
             String reply = in.readLine();
@@ -794,9 +803,9 @@ public class ClientMain {
         return true;
     }
 
-    public static boolean rewinPost(int idPost){
+    public static boolean rewinPost(Integer idPost){
 
-        String request = Operation.REWIN_POST + "\n" + thisUser + "\n" + idPost;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.REWIN_POST.toString(), thisUser, idPost.toString())));
         try{
             out.println(request);
             String reply = in.readLine();
@@ -819,9 +828,9 @@ public class ClientMain {
         return true;
     }
 
-    public static boolean ratePost(int idPost, int vote){
+    public static boolean ratePost(Integer idPost, Integer vote){
 
-        String request = Operation.RATE_POST + "\n" + thisUser + "\n" + idPost + "\n" + vote;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.RATE_POST.toString(), thisUser, idPost.toString(), vote.toString())));
         try{
             out.println(request);
             String reply = in.readLine();
@@ -844,9 +853,9 @@ public class ClientMain {
         return true;
     }
 
-    public static boolean addComment(int idPost, String content){
+    public static boolean addComment(Integer idPost, String content){
 
-        String request = Operation.ADD_COMMENT + "\n" + thisUser + "\n" + idPost + "\n" + content;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.ADD_COMMENT.toString(), thisUser, idPost.toString(), content)));
         try{
             out.println(request);
             String reply = in.readLine();
@@ -871,7 +880,7 @@ public class ClientMain {
 
     public static boolean getWallet(){
 
-        String request = Operation.GET_WALLET + "\n" + thisUser;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.GET_WALLET.toString(), thisUser)));
         try{
             out.println(request);
 
@@ -897,9 +906,8 @@ public class ClientMain {
     }
 
     public static boolean getWalletBitcoin(){
-        System.out.println("GET_WALLET_BITCOIN");
 
-        String request = Operation.GET_WALLET_BITCOIN + "\n" + thisUser;
+        String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.GET_WALLET_BITCOIN.toString(), thisUser)));
         try{
             out.println(request);
 

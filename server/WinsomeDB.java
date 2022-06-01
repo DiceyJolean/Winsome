@@ -36,8 +36,8 @@ public class WinsomeDB implements Serializable {
             return false;
 
         if ( users.putIfAbsent(user.getNickname(), user) != null ){
-            if ( DEBUG ) System.out.println("DATABASE: Inserimento di " + user.getNickname() + " fallito, chiave duplicata\n");
-
+            if ( DEBUG ) System.out.println("DATABASE: Inserimento di " + user.getNickname() + " fallito, infatti la get restituisce: \n" + users.get(user.getNickname()));
+            
             return false;
         }
 
@@ -55,20 +55,6 @@ public class WinsomeDB implements Serializable {
 
 
         if ( DEBUG ) System.out.println("DATABASE: Inserimento di " + user.getNickname() + " avvenuto con successo\n");
-        return true;
-    }
-
-    private boolean addPost(WinsomePost post){
-        if ( post == null )
-            return false;
-
-        if ( posts.putIfAbsent(post.getIdPost(), post) != null ){
-            if ( DEBUG ) System.out.println("DATABASE: Inserimento del post n. " + post.getIdPost() + " fallito\n");
-
-            return false;
-        }
-
-        if ( DEBUG ) System.out.println("DATABASE: Inserimento del post n. " + post.getIdPost() + " fallito avvenuto con successo\n");
         return true;
     }
 
@@ -142,14 +128,26 @@ public class WinsomeDB implements Serializable {
         if ( username == null || password == null )
             return false;
 
-        return users.get(username).login(password);
+        WinsomeUser toLogin = users.get(username);
+        if ( toLogin == null ){
+            System.err.println("DATABASE: " + username + " non è presente nel database per poter effettuare il login");
+            return false;
+        }
+
+        return toLogin.login(password);
     }
 
     public boolean logout(String username){
         if ( username == null )
             return false;
 
-        return users.get(username).logout();
+        WinsomeUser toLogout = users.get(username);
+        if ( toLogout == null ){
+            System.err.println("DATABASE: " + username + " non è registrato a Winsome");
+            return false;
+        }
+
+        return toLogout.logout();
     }
     
     public boolean unfollowUser(String user, String toUnfollow){
@@ -180,7 +178,7 @@ public class WinsomeDB implements Serializable {
         // TODO ma la gestione della concorrenza?
         // Qui o il reward lavora su una copia, o devo sincronizzare
         // Per ora sincronizzo
-        WinsomePost post = new WinsomePost(newPost.incrementAndGet(), author, content);
+        WinsomePost post = new WinsomePost(newPost.incrementAndGet(), title, author, content);
         WinsomeUser user = users.get(author);
         // Qui inizia la race condition
         synchronized(user){
@@ -315,15 +313,31 @@ public class WinsomeDB implements Serializable {
         return users;
     }
 
-    // Per evitare un eccessivo carico del file database recupero il Database di Winsome soltanto tramite la struttura degli utenti
+    private boolean addPost(WinsomePost post){
+        if ( post == null )
+            return false;
+
+        if ( posts.putIfAbsent(post.getIdPost(), post) != null ){
+            if ( DEBUG ) System.out.println("DATABASE: Inserimento del post n. " + post.getIdPost() + " fallito\n");
+
+            return false;
+        }
+
+        if ( DEBUG ) System.out.println("DATABASE: Inserimento del post n. " + post.getIdPost() + " avvenuto con successo\n");
+        return true;
+    }
+
+    // Per evitare ridondanza nel file database recupero il Database di Winsome soltanto tramite la struttura degli utenti
     public boolean loadDatabase(Map<String, WinsomeUser> users){
         if ( users == null )
             return false;
 
         this.users = users;
         for ( WinsomeUser user : this.users.values() ){
-            for ( WinsomePost post : user.getPosts() )
+            for ( WinsomePost post : user.getPosts() ){
+                newPost.incrementAndGet();
                 addPost(post);
+            }
             for ( String tag : user.getTags() ){
                 tags.putIfAbsent(tag, new HashSet<String>());
                 // Poi aggiungo l'utente all'insieme di quelli che hanno indicato quel tag

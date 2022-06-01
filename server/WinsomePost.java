@@ -59,7 +59,7 @@ public class WinsomePost implements Serializable{
         }
     }
 
-    public WinsomePost(int idPost, String author, String content){
+    public WinsomePost(int idPost, String title, String author, String content){
         this.idPost = idPost;
         this.title = new String(title);
         this.author = new String(author);
@@ -103,7 +103,7 @@ public class WinsomePost implements Serializable{
             "\n\t\tVOTI: " + newVotes.toString() + oldVotes.toString() +
             "\n\t\tCOMMENTI: " + newComments.toString() + oldComments.toString() +
             "\n\t\tREWINNERS: " + rewinners.toString() +
-            "\n\t\tN_ITER: " + nIterations;
+            "\n\t\tN_ITER: " + nIterations + "\n";
     }
     // =========== Setter
 

@@ -10,10 +10,10 @@ import java.net.UnknownHostException;
  * Thread che resta in ascolto sulla porta UDP per ricevere gli aggiornamenti
  * del calcolo delle ricompense di Winsome
  */
+@SuppressWarnings("deprecation")
 public class RewardUpdater implements Runnable{
     MulticastSocket multicastSocket = null;
     InetAddress address = null;
-    private static volatile boolean toStop = false;
 
     public RewardUpdater(String multicastAddress, int multicastPort)
     throws IOException{

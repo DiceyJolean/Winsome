@@ -1,7 +1,7 @@
 {
-  "Erica": {
-    "nickname": "Erica",
-    "psw": "pass",
+  "ciao": {
+    "nickname": "ciao",
+    "psw": "$2a$10$iGVFJBx7Dt0vGl7JVPTmGuxGQ1dCbf7jCZag/XM2euVwmBrDWWS.K",
     "follower": [
       "Chiara",
       "Luca",
@@ -43,22 +43,6 @@
     ],
     "wallet": 0.0
   },
-  "ciao": {
-    "nickname": "ciao",
-    "psw": "$2a$10$iGVFJBx7Dt0vGl7JVPTmGuxGQ1dCbf7jCZag/XM2euVwmBrDWWS.K",
-    "follower": [
-      "UnFollower",
-      "NewFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
-  },
   "prova": {
     "nickname": "prova",
     "psw": "$2a$10$7xdJW4/rY3qv01HU56Ysj.bXhS0Bq16DfmX.gkgG8OPNfhz8fiGpG",
@@ -81,7 +65,7 @@
       "UnFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a"
     ],
@@ -112,7 +96,7 @@
       "UnFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a"
     ],
@@ -143,7 +127,7 @@
       "UnFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a"
     ],
@@ -159,7 +143,7 @@
       "UnFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a"
     ],
@@ -175,7 +159,7 @@
       "UnFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a"
     ],
@@ -191,7 +175,7 @@
       "UnFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a"
     ],
@@ -207,7 +191,7 @@
       "UnFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a",
       "uno",
@@ -225,7 +209,7 @@
       "UnFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a",
       "uno",
@@ -243,7 +227,7 @@
       "UnFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a",
       "uno",
@@ -260,7 +244,7 @@
       "UnFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a",
       "uno",
@@ -278,9 +262,80 @@
       "UnFollower"
     ],
     "following": [],
-    "loggedIn": true,
+    "loggedIn": false,
     "tags": [
       "a"
+    ],
+    "postRewinned": [],
+    "blog": [],
+    "wallet": 0.0
+  },
+  "erica": {
+    "nickname": "erica",
+    "psw": "$2a$10$bEBL05EeJszumRjsEyas/OMdWJ/3meOvQfTMN9L8rKWBbOc41CS.S",
+    "follower": [
+      "NewFollower"
+    ],
+    "following": [],
+    "loggedIn": true,
+    "tags": [
+      "che",
+      "piace",
+      "un",
+      "tag",
+      "mi"
+    ],
+    "postRewinned": [],
+    "blog": [
+      {
+        "idPost": 2,
+        "title": "ilprimopost",
+        "author": "erica",
+        "content": "contenuto del posto ",
+        "newVotes": {},
+        "oldVotes": {},
+        "newComments": {},
+        "oldComments": {},
+        "rewinners": [],
+        "nIterations": 0
+      },
+      {
+        "idPost": 3,
+        "title": "titolo",
+        "author": "erica",
+        "content": "evvivaaaaa \n",
+        "newVotes": {},
+        "oldVotes": {},
+        "newComments": {},
+        "oldComments": {},
+        "rewinners": [],
+        "nIterations": 0
+      },
+      {
+        "idPost": 4,
+        "title": "uuuu",
+        "author": "erica",
+        "content": "aaaaaaaaah \n",
+        "newVotes": {},
+        "oldVotes": {},
+        "newComments": {},
+        "oldComments": {},
+        "rewinners": [],
+        "nIterations": 0
+      }
+    ],
+    "wallet": 0.0
+  },
+  "bene": {
+    "nickname": "bene",
+    "psw": "$2a$10$rN6qVBnLdTx8hL37ivX5nutwY9h8Gll9wCg44rDpbOqd2fgioKndS",
+    "follower": [
+      "erica"
+    ],
+    "following": [],
+    "loggedIn": false,
+    "tags": [
+      "uffa"
     ],
     "postRewinned": [],
     "blog": [],

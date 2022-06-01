@@ -25,17 +25,12 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
             for ( String tag : tags )
                 tag.toLowerCase();
             WinsomeUser newUser = new WinsomeUser(username, password, tags);
-            if ( db.addUser(newUser) ){
-                if ( DEBUG ) System.out.println("RMIService: Aggiunto nuovo utente \"" + newUser.toString() + "\" a Winsome");
+            if ( !db.addUser(newUser) ){
+                if ( DEBUG ) System.out.println("RMI register: inserimento di " + username + " fallito");
+                return false;
             }
-/*
-            if ( DEBUG ){
-                // Aggiungo follower fittizi
-                // db.getUsers().get(username).addFollower("UnFollower");
-                db.addFollower(username, "UnFollower");
-            }
-*/
-            return true; // db.addUser(newUser);
+
+            return true;
         } catch ( Exception e ){
             return false;
         }
@@ -48,15 +43,7 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
         if ( DEBUG ) System.out.println("RMIService: Aggiunto nuovo utente \"" + user.getUser() + "\" al servizio di notifica");
 
         try{
-            db.getUsers().get(user.getUser()).addFollower("NewFollower");
-            
             Set<String> followers = db.getUsers().get(user.getUser()).getFollower();
-            System.out.println("\nRMIService: Dovrei aver aggiunto un follower al database, ecco alcuni dati:\n" +
-            "L'utente \"" + db.getUsers().get(user.getUser()).getNickname() + "\" ha i seguenti followers:\n" +
-            db.getUsers().get(user.getUser()).getFollower().toString() + "\n");
-            
-            doCallback(user.getUser(), "Notifica");
-
             return followers;
         } catch ( Exception e ){
             e.printStackTrace();

@@ -43,14 +43,12 @@ public class ServerMain {
 
     private static String processRequest(String request){
         String reply = ""; // Messaggio di risposta da inviare al client
-        boolean status = false; // Esito dell'operazione
         String description = Communication.success; // Descrizione dell'esito dell'operazione
         String attr = ""; // Eventuali attributi da restituire al client
         
-        // La richiesta è nel formato OPERATION\nUSERNAME\nATTRIBUTI
-        String[] token = request.split("\n");
+        // La richiesta è nel formato OPERATION;USERNAME;ATTRIBUTI
+        String[] token = request.split(";");
 
-        // String operation = new String(token[0]);
         Operation operation = Operation.valueOf(new String(token[0]));
         String user = new String(token[1]);
 
@@ -59,89 +57,84 @@ public class ServerMain {
         try{
             switch ( operation ){
                 case ADD_COMMENT:{
-                    status = database.addComment(user, Integer.parseInt(token[2]), token[3]);
+                    description = database.addComment(user, Integer.parseInt(token[2]), token[3]) ? Communication.success : "";
                     break;
                 }
                 case CREATE_POST:{
-                    status = database.createPost(user, token[2], token[3]);
+                    database.createPost(user, token[2], token[3]);
                     break;
                 }
                 case DELETE_POST:{
-                    status = database.deletePost(user, Integer.parseInt(token[2]));
+                    description = database.deletePost(user, Integer.parseInt(token[2])) ? Communication.success : "NO";
                     break;
                 }
                 case FOLLOW_USER:{    
-                    status = database.followUser(user, token[2]);
+                    description = database.followUser(user, token[2]) ? Communication.success : "NO";
                     // TODO devo mandare la notifica di callback
                     stub.doCallback(user, "Un utente ha iniziato a seguirti ("+ token[2]+")\n");
                     break;
                 }
                 case GET_WALLET:{
                     attr = database.getWallet(user).toString();
-                    status = true;
                     break;
                 }
                 // status = database.getWalletInBitcoin(user); TODO 
                 case LIST_FOLLOWING:{
                     attr = Arrays.toString( database.listFollowing(user).toArray() );
-                
-                    status = true;
                     break;
                 }
                 case LIST_USERS:{
                     attr = Arrays.toString(database.listUsers(user).toArray());
-                    status = true;
                     break;
                 }
                 case LOGIN:{
-                    status = database.login(user, token[2]);
-                    
+                    description = database.login(user, new String(token[2])) ? Communication.success : "NO";
                     break;
                 }
                 case LOGOUT:{
-                    status = database.logout(user);
-                    
+                    description = database.logout(user) ? Communication.success : "NO";
                     break;
                 }
                 case RATE_POST:{
-                    status = database.ratePost(user, Integer.parseInt(token[2]), Integer.parseInt(token[3]));
+                    description = database.ratePost(user, Integer.parseInt(token[2]), Integer.parseInt(token[3]))  ? Communication.success : "NO";
                     break;
                 }
                 case REWIN_POST:{
-                    status = database.rewinPost(user, Integer.parseInt(token[2]));
+                    description = database.rewinPost(user, Integer.parseInt(token[2])) ? Communication.success : "NO";
                     break;
                 }
                 case SHOW_FEED:{
                     attr = Arrays.toString( database.showFeed(user).toArray() );
-                    status = true;
                     break;
                 }
                 case SHOW_POST:{
                     attr = database.showPost(Integer.parseInt(token[2])).toPrint();
-                    status = true;
                     break;
                 }
                 case UNFOLLOW_USER:{
-                    status = database.unfollowUser(user, token[2]);
+                    description = database.unfollowUser(user, token[2]) ? Communication.success : "NO";
                     // TODO devo mandare la notifica di callback
                     stub.doCallback(user, "Un utente ha smesso di seguirti ("+ token[2]+")\n");
                     break;
                 }
                 case VIEW_BLOG:{
-                    attr = Arrays.toString( database.viewBlog(user).toArray() );
-                    status = true;
+                    Set<WinsomePost> tmp = database.viewBlog(user);
+                    if ( tmp == null ){
+                        description = "NO";
+                        break;
+                    }
+                    description = Communication.success;
+                    attr = Arrays.toString( tmp.toArray() );
                     break;
                 }
                 default:{
-                    status = false;
                     description = "Operation not allowed";
-                    if ( DEBUG ) System.out.println("SERVER: Qualcosa è andato storto nel processare la richiesta");
+                    if ( DEBUG ) System.out.println("SERVER: Qualcosa è andato storto nel processare la richiesta: " + operation);
                     
-                    return null;
+                    return description + "\n" + attr.toString() + "\n";
                 }
             }
         } catch ( Exception e ){
-            status = false;
             description = e.getMessage();
             e.printStackTrace();
         } finally {
