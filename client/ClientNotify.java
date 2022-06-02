@@ -12,9 +12,8 @@ public class ClientNotify extends UnicastRemoteObject implements ClientNotifyInt
     private Set<String> followers = null;
     private String username = null;
 
-    public ClientNotify(String username, Set<String> followers)
+    public ClientNotify(String username)
     throws RemoteException {
-        this.followers = followers;
         this.username = username;
     }
 
@@ -23,7 +22,12 @@ public class ClientNotify extends UnicastRemoteObject implements ClientNotifyInt
         return this.username;
     }
 
-    public boolean notify(String notify)
+    public synchronized void setFollowers(Set<String> followers){
+        this.followers = followers;
+    }
+
+    // Sincronizzo perché la registrazione è già avvenuta, potrebbe capitare che un utente inizi a seguirmi mentre inizializzo la struttura dei follower
+    public synchronized boolean notify(String notify)
     throws RemoteException{
         // TODO aggiungere o togliere un utente alla lista dei follower lato client
         if ( notify == null )
@@ -33,7 +37,7 @@ public class ClientNotify extends UnicastRemoteObject implements ClientNotifyInt
             // Se il server può invocare questo metodo, significa che lo stub dell'utente
             // era presente, quindi l'utente è attualmente registrato al servizio di notifica
             // e se questa condizione è verifica c'è stato un errore fatale
-            throw new RemoteException();
+            return false;
 
         String[] token = notify.split(";");
         if ( token.length < 2 )

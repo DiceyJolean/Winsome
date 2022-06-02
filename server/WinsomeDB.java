@@ -100,6 +100,10 @@ public class WinsomeDB implements Serializable {
         if ( user == null || toFollow == null )
             return false;
 
+        if ( user.equals(toFollow) )
+            // Non è possibile seguire se stessi
+            return false;
+
         WinsomeUser follower = users.get(user); // Chi segue
         if ( follower == null )
             return false;
@@ -108,13 +112,17 @@ public class WinsomeDB implements Serializable {
         if ( followed == null )
             return false;
 
-        return follower.addFollowing(toFollow) || followed.addFollower(user);
+        return follower.addFollowing(toFollow) && followed.addFollower(user);
     }
     
     public boolean unfollowUser(String user, String toUnfollow){
         // user smette di seguire toUnfollow
 
         if ( user == null || toUnfollow == null )
+            return false;
+
+        if ( user.equals(toUnfollow) )
+            // Non è possibile seguire se stessi
             return false;
 
         WinsomeUser follower = users.get(user); // Chi segue
@@ -125,7 +133,7 @@ public class WinsomeDB implements Serializable {
         if ( followed == null )
             return false;
 
-        return followed.removeFollower(toUnfollow) || follower.removeFollowing(user);
+        return followed.removeFollower(user) && follower.removeFollowing(toUnfollow);
     }
 
     public Set<String> listUsers(String username){

@@ -124,7 +124,12 @@ public class WinsomeUser implements Serializable {
         if ( user == null )
             throw new NullArgumentException();
     */
-        return this.follower.add(user);
+        if ( nickname.equals(user) )
+            // Non è possibile seguire se stessi
+            return false;
+
+        follower.add(user);
+        return true;
     }
 
     /**
@@ -140,7 +145,12 @@ public class WinsomeUser implements Serializable {
             throw new NullArgumentException();
             */
 
-        return this.following.add(user);
+        if ( nickname.equals(user) )
+            // Non è possibile essere seguiti da se stessi
+            return false;
+
+        following.add(user);
+        return true;
     }
     
     /**
@@ -231,6 +241,10 @@ public class WinsomeUser implements Serializable {
         if ( user == null )
             throw new NullArgumentException();
         */
+        if ( nickname.equals(user) )
+            // Non è possibile seguire se stessi
+            return false;
+
         follower.remove(user);
         return true;
     }
@@ -247,6 +261,10 @@ public class WinsomeUser implements Serializable {
         if ( user == null )
             throw new NullArgumentException();
     */
+        if ( nickname.equals(user) )
+            // Non è possibile essere seguiti da se stessi
+            return false;
+
         following.remove(user);
         return true;
     }

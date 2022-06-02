@@ -37,7 +37,7 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
     }
 
     @Override
-    public Set<String> registerForCallback( ClientNotifyInterface user)
+    public synchronized Set<String> registerForCallback(ClientNotifyInterface user)
     throws RemoteException {
         clients.add(user);
         if ( DEBUG ) System.out.println("RMIService: Aggiunto nuovo utente \"" + user.getUser() + "\" al servizio di notifica");
@@ -52,13 +52,14 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
     }
 
     @Override
-    public boolean unregisterForCallback(ClientNotifyInterface user)
+    public synchronized boolean unregisterForCallback(ClientNotifyInterface user)
     throws RemoteException {
 
         if ( DEBUG ) System.out.println("RMIService: Rimuovo un utente \"" + user.getUser() + "\" a Winsome");
         return clients.remove(user);
     }
 
+    // La callback la chiama il server, che è in multiplexing, quindi non è una sezione critica
     public boolean doCallback(String user, String notify)
     throws RemoteException {
         // Cerco lo stub dell'utente che dovrà ricevere la notifica

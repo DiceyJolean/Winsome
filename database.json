@@ -5,7 +5,8 @@
     "follower": [
       "Chiara",
       "Luca",
-      "NewFollower"
+      "NewFollower",
+      "erica"
     ],
     "following": [],
     "loggedIn": false,
@@ -278,7 +279,8 @@
       "bene"
     ],
     "following": [
-      "bene"
+      "bene",
+      "ciao"
     ],
     "loggedIn": false,
     "tags": [

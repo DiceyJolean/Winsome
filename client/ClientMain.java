@@ -501,15 +501,18 @@ public class ClientMain {
                     serviceRMI = ( RMIServiceInterface ) registry.lookup(rmiServiceName);
                 }
                 
-                stub = new ClientNotify(username, followers);
-                followers = serviceRMI.registerForCallback(stub);
-                            
+                stub = new ClientNotify(username);
+                synchronized ( stub ){
+                    followers = serviceRMI.registerForCallback(stub);
+                    stub.setFollowers(followers);
+                }
+
                 if ( DEBUG ) System.out.println("CLIENT: Mi registro al servizio di notifica");
                 // if ( DEBUG ) System.out.println("CLIENT: I miei follower sono: " + followers.toString());
             } catch ( NotBoundException e ){
                 // Errore del server (non dell'utente), è ragionevole terminare TODO
                 return false;
-            } catch (RemoteException e ){
+            } catch ( RemoteException e ){
                 e.printStackTrace();
                 return false;
             }
