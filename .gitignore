@@ -1,0 +1,3 @@
+client/*.class
+server/*.class
+shared/*.class

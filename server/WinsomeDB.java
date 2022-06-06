@@ -1,8 +1,10 @@
 package server;
 
 import java.io.Serializable;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -190,13 +192,13 @@ public class WinsomeDB implements Serializable {
         if ( username == null )
             return null;
 
-            Set<WinsomePost> blog = getPostPerUser(username);
-            Set<Integer> rewin = getUser(username).getRewin();
-    
-            for ( Integer idPost : rewin )
-                blog.add(((posts.get(idPost))));
-    
-            return blog;
+        Set<WinsomePost> blog = getPostPerUser(username);
+        Set<Integer> rewin = getUser(username).getRewin();
+
+        for ( Integer idPost : rewin )
+            blog.add(((posts.get(idPost))));
+
+        return blog;
     }
 
     public boolean createPost(String author, String title, String content){
@@ -208,7 +210,7 @@ public class WinsomeDB implements Serializable {
         // Per ora sincronizzo
         WinsomePost post = new WinsomePost(newPost.incrementAndGet(), title, author, content);
         WinsomeUser user = users.get(author);
-        // Qui inizia la race condition
+        // Qui inizia la race condition con il reward calculator
         synchronized(user){
             user.addPost(post);
         }
@@ -295,9 +297,9 @@ public class WinsomeDB implements Serializable {
         return false;
     }
 
-    public Double getWallet(String username){
+    public List<WinsomeWallet> getWallet(String username){
         if ( username == null )
-            return 0.0;
+            return null;
 
         return users.get(username).getReward();
     }
@@ -318,7 +320,12 @@ public class WinsomeDB implements Serializable {
 
 
     public boolean updateReward(Map<String, Double> rewardPerUser){
-        // TODO
+        // la concurrent hashmap accede alla struttura degli utenti, 
+        // per cui se il server contemporaneamente 
+
+        for ( WinsomeUser user : users.values() )
+            if ( rewardPerUser.get(user.getNickname()) != null )
+                user.updateReward(Calendar.getInstance().getTime(), rewardPerUser.get(user.getNickname()));
 
         return true;
     }
@@ -346,12 +353,12 @@ public class WinsomeDB implements Serializable {
             return false;
 
         if ( posts.putIfAbsent(post.getIdPost(), post) != null ){
-            if ( DEBUG ) System.out.println("DATABASE: Inserimento del post n. " + post.getIdPost() + " fallito\n");
+            // if ( DEBUG ) System.out.println("DATABASE: Inserimento del post n. " + post.getIdPost() + " fallito\n");
 
             return false;
         }
 
-        if ( DEBUG ) System.out.println("DATABASE: Inserimento del post n. " + post.getIdPost() + " avvenuto con successo\n");
+        // if ( DEBUG ) System.out.println("DATABASE: Inserimento del post n. " + post.getIdPost() + " avvenuto con successo\n");
         return true;
     }
 

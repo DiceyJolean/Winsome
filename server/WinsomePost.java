@@ -9,8 +9,6 @@ import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
-import shared.NullArgumentException;
-
 public class WinsomePost implements Serializable{
 
     private int idPost; // Id del post
@@ -96,15 +94,44 @@ public class WinsomePost implements Serializable{
     }
 
     public String toPrint(){
-        return "\n\t\tID: " + idPost +
-            "\n\t\tTITLE: " + title +
-            "\n\t\tCONTENUTO: " + content +
-            "\n\t\tAUTORE: " + author +
-            "\n\t\tVOTI: " + newVotes.toString() + oldVotes.toString() +
-            "\n\t\tCOMMENTI: " + newComments.toString() + oldComments.toString() +
-            "\n\t\tREWINNERS: " + rewinners.toString() +
-            "\n\t\tN_ITER: " + nIterations + "\n";
+        Map<String, Vote> votes = new HashMap<String, Vote>(oldVotes);
+        votes.putAll(newVotes);
+
+        String votesPrettyPrinting = "{";
+
+        for ( Entry<String, Vote> entry : votes.entrySet() )
+            votesPrettyPrinting = votesPrettyPrinting + entry.getKey() + "=" + entry.getValue() + ", ";
+
+        if ( votesPrettyPrinting.endsWith(", ") )
+            votesPrettyPrinting = votesPrettyPrinting.substring(0, votesPrettyPrinting.length()-2);
+        votesPrettyPrinting = votesPrettyPrinting + "}";
+
+        Map<String, ArrayList<String>> comments = new HashMap<String, ArrayList<String>>(oldComments);
+
+        for ( Entry<String, ArrayList<String>> entry : newComments.entrySet() )
+            if ( comments.get(entry.getKey()) != null )
+                comments.get(entry.getKey()).addAll(entry.getValue());
+            else
+                comments.put(entry.getKey(), entry.getValue());
+
+        String commentsPrettyPrinting = "{";
+        for ( Entry<String, ArrayList<String>> entry : comments.entrySet() )
+            commentsPrettyPrinting = commentsPrettyPrinting + entry.getKey() + "=" + entry.getValue().toString() + ", ";
+
+        if ( commentsPrettyPrinting.endsWith(", ") )
+            commentsPrettyPrinting = commentsPrettyPrinting.substring(0, commentsPrettyPrinting.length()-2);
+        commentsPrettyPrinting = commentsPrettyPrinting + "}";
+
+        return "\n\tID: " + idPost +
+            "\n\tTITOLO: " + title +
+            "\n\tCONTENUTO: " + content +
+            "\n\tAUTORE: " + author +
+            "\n\tVOTI: " + votesPrettyPrinting +
+            "\n\tCOMMENTI: " + commentsPrettyPrinting +
+            "\n\tREWINNERS: " + rewinners.toString() +
+            "\n\tN_ITER: " + nIterations + "\n";
     }
+    
     // =========== Setter
 
     public boolean addVote(String user, int value){
@@ -138,21 +165,6 @@ public class WinsomePost implements Serializable{
         return false;                
     }
 
-    public boolean addVote(String user, Vote vote)
-    throws NullArgumentException {
-        if ( user == null || vote == null )
-            throw new NullArgumentException();
-        
-        // Controllo che l'utente non abbia già aggiunto un voto prima dell'ultima iterazione del reward
-        synchronized ( this ){
-        if ( this.oldComments.get(user) == null )
-            if (this.newVotes.putIfAbsent(user, vote) != null )
-                return true;
-        }
-
-        return false;
-    }
-
     public boolean addComment(String user, String comment){
     // throws NullArgumentException {
         if ( comment == null || user == null )
@@ -162,7 +174,10 @@ public class WinsomePost implements Serializable{
         // Aggiungo sempre in newComment
         // Sposto tra new e old dopo il calcolo del reward
         synchronized ( this ){
-            // TODO eheheheheh
+            // TODO sistemare la concorrenza con il reward calculator
+            
+            newComments.putIfAbsent(user, new ArrayList<String>());
+
             return this.newComments.get(user).add(comment);
         }
     }
@@ -173,9 +188,9 @@ public class WinsomePost implements Serializable{
             return false;
             // throw new NullArgumentException();
 
-        synchronized (this){
-            return this.rewinners.add(user);
-        }
+        //synchronized (this){ TODO perché avevo messo synch? i rewin non sono di interesse nel calcolo della ricompensa
+            return rewinners.add(user);
+        //}
     }
 
 

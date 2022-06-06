@@ -15,11 +15,11 @@ import shared.NullArgumentException;
 public class RewardCalculator implements Runnable{
 
     private int period;
-    private int percAuth;
-    private int percCur;
+    private double percAuth;
+    private double percCur;
     private int port;
     private InetAddress address;
-
+/*
     public class RewardCalculatorConfigurationException extends Exception{
 
         public RewardCalculatorConfigurationException(){
@@ -30,27 +30,28 @@ public class RewardCalculator implements Runnable{
             super(s);
         }
     }
-
+*/
     private volatile boolean terminate = false; // Variabile per la terminazione del thread
     // Puntatore al DB dei post per poter richiedere la lista
     private WinsomeDB database;
     
-    public RewardCalculator(int period, int percAuth, int port, String address, WinsomeDB db)
-    throws RewardCalculatorConfigurationException, NullArgumentException {
-        
+    public RewardCalculator(int period, double percAuth, int port, String address, WinsomeDB db)
+    throws UnknownHostException {
+    // throws RewardCalculatorConfigurationException, NullArgumentException {
+/*        
         if ( db == null )
             throw new NullArgumentException();
-
+*/
         this.period = period;
         this.percAuth = percAuth;
         this.percCur = 1 - percAuth;
         this.port = port;
         try{
             this.address = InetAddress.getByName(address);
-            if ( !this.address.isMulticastAddress() )
-                throw new RewardCalculatorConfigurationException();
+            /*if ( !this.address.isMulticastAddress() )
+                throw new RewardCalculatorConfigurationException();*/
         } catch ( UnknownHostException e ){
-            throw new RewardCalculatorConfigurationException();
+            throw e;// new RewardCalculatorConfigurationException();
         }
 
         this.database = db;
@@ -71,7 +72,7 @@ public class RewardCalculator implements Runnable{
         try{
             DatagramSocket socket = new DatagramSocket();
 
-            double rewUpdate = 0;
+            Double rewUpdate = Double.valueOf(0);
             double rewPost = 0;
             // Struttura che raccoglie i nomi dei curatori per ogni post
             Set<String> curators = new HashSet<String>();
@@ -95,22 +96,24 @@ public class RewardCalculator implements Runnable{
                 rewardPerUser.clear();
 
                 // Ottengo la lista di tutti gli utenti
-                // È un riferimento, dovrò gestire la concorrenza o sono tranquilla perché è una concurrenthashmap? TODO
+                // È un riferimento, avrò gestire la concorrenza o sono tranquilla perché è una concurrenthashmap? TODO
                 WinsomeDB dbCopy = database.getCopy();
                 users = dbCopy.getUsers();
                 Set<String> keySet = users.keySet();
                                 
                 for (String user : keySet ){
                     // Per ogni utente calcolo la ricompensa
+                    
+                    // Aggiungo l'utente alla struttura dati che raccoglie le ricompense
+                    rewardPerUser.put(user, Double.valueOf(0)); 
 
-                    rewardPerUser.put(user, null); // Aggiungo l'utente alla struttura dati che raccoglie le ricompense
-
+                    /*
                     // Posso fare un for-each perché non modifico la struttura, invece che aver bisogno di un iteratore
                     // Accedo alla struttura in modalità lettura e ci pensa Java a sincronizzare (lock striping)
 
                     // Se nel frattempo qualche utente crea nuovi post?
                     // Le alternative sono due, semplicemente:
-                    // - lavoro su dati "vecchi" ma le ricompense sono più giuste
+                    // - lavoro su dati "vecchi" ma le ricompense sono più giuste !!! non va bene, perché poi come aggiorno il portafoglio se ho una copia?
                     // - lavoro su un puntatore sincronizzanto,
                     // In entrambi i casi possono avvenire operazioni di utenti attualmente non sincronizzati
                     // Potrei risolvere con una readlock su tutta la struttura
@@ -119,6 +122,8 @@ public class RewardCalculator implements Runnable{
                     // for each per la lettura, iterator per la scrittura
 
                     // Lavoro su una copia, non ho necessità di sincronizzare
+                    */
+
                     for (WinsomePost post : database.getPostPerUser(user)){
                         // Curatori del post tra i quali dividere la ricompensa
                         curators.clear();
@@ -127,22 +132,30 @@ public class RewardCalculator implements Runnable{
                         // perché li invoca soltanto il calcolatore, quindi non devono essere synch questi metodi,
                         // piuttosto non devono essere aggiunti voti o commenti nel frattempo 
                         
-                        // synchronized (post){
-                        // Ho scelto di lavorare su una copia, i voti, commenti o post rimossi saranno considerati alla prossima iterazione
-                            
-                        // I metodi di post sono synchronized, ma tolgo il synch su quelli che invoco qui
+                        synchronized (post){
+                            /*
+                             * Due parole su questa sincronizzazione...
+                             * 
+                             * I metodi di WinsomePost che modificano l'istanza, quindi rate, comment e rewin, sincronizzano l'istanza.
+                             * Durante il calcolo del reward sincronizzo di nuovo l'istanza del WinsomePost, ma lo faccio utilizzando
+                             * il blocco synchronized non nel metodo ma qui. Perché? Perché così nel frattempo non rischio che vengano
+                             * aggiunti nuovi commenti mentre li ho già contati ad esempio, anche se la struttura rimarrebbe consistente.
+                             */
+                        
+                            // I metodi di post che toccano voti e commenti sono synchronized, ma tolgo il synch su quelli che invoco qui
                             int voteSum = post.countVote(curators);
                             // In questo punto lo stesso post potrebbe ricevere alcuni commenti e non mi piace
                             // Sincronizzo durante il calcolo
                             int commentSum = post.countComments(curators);
 
+                            post.increaseIterations(); // Lo faccio adesso per non dividere per 0
+
                             rewPost = ( Math.log(voteSum) + Math.log(commentSum) ) / post.getIterations();
                             if ( rewPost < 0 )
                                 rewPost = 0;
                             
-                            post.increaseIterations();
                             post.switchNewOld();
-                        // }
+                        }
                     
                         for ( String curator : curators ){
                             // Per ogni curatore del post aggiorno la ricompensa totale
@@ -152,13 +165,18 @@ public class RewardCalculator implements Runnable{
                                 rewardPerUser.replace(curator, rewUpdate);
                             }
                             else 
-                                rewardPerUser.put(curator, (rewPost * percCur) / curators.size() );
+                                rewardPerUser.replace(curator, null, (rewPost * percCur) / curators.size() );
                         }
                         
                         // Aggiorno le ricompense dell'utente con quelle calcolate sul post
-                        rewUpdate = rewardPerUser.get(user);
-                        rewUpdate += ( rewPost * percAuth );
-                        rewardPerUser.replace(user, rewUpdate);
+                        if ( rewardPerUser.get(user) != null ){
+                            rewUpdate = rewardPerUser.get(user);
+                            rewUpdate += rewPost * percAuth;
+                            rewardPerUser.replace(user, rewUpdate);
+                        }
+                        else 
+                            rewardPerUser.replace(user, null, rewPost * percAuth);
+
                     }
                 }
 
@@ -193,7 +211,7 @@ public class RewardCalculator implements Runnable{
             socket.close();
         } catch ( Exception e ){
             // TODO Eccezione fatale che non dipende dai parametri, ha senso terminare il thread
-
+            e.printStackTrace();
         }
     }
     

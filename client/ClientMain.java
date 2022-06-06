@@ -230,9 +230,9 @@ public class ClientMain {
                         }
 
                         String title = new String(req[1]);
-                        StringBuilder content = new StringBuilder(req[2] + " ");
+                        StringBuilder content = new StringBuilder(req[2]);
                         for ( int i = 3; i < req.length; i++ )
-                            content.append(req[i] + " ");
+                            content.append(" " + req[i]);
                             
                         createPost(title, content.toString());
                         break;
@@ -244,9 +244,9 @@ public class ClientMain {
                         }
                         try {
                             int idPost = Integer.parseInt(req[1]);
-                            StringBuilder content = new StringBuilder(req[2] + " ");
+                            StringBuilder content = new StringBuilder(req[2]);
                             for ( int i = 3; i < req.length; i++ )
-                                content.append(req[i] + " ");
+                                content.append(" " + req[i]);
                                                             
                             addComment(idPost, content.toString());
                             break;
@@ -359,7 +359,7 @@ public class ClientMain {
                         break;
                     }
                     case "delete":{
-                        if ( req.length != 3 || !req[1].equals("post") ){
+                        if ( req.length < 2 ){
                             helpMessage();
                             break;
                         }
@@ -375,7 +375,7 @@ public class ClientMain {
                         }
                     }
                     case "rewin":{
-                        if ( req.length != 3 || !req[1].equals("post") ){
+                        if ( req.length < 2 ){
                             helpMessage();
                             break;
                         }
@@ -484,7 +484,7 @@ public class ClientMain {
             System.out.println("CLIENT: Ho inviato la richiesta al server");
             String reply = in.readLine();
             in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
-            logged = reply.equals(Communication.success) ? true : false;
+            logged = reply.equals(Communication.Success.toString()) ? true : false;
             
             if ( !logged ){
                 System.out.println("LOGIN fallita: " + reply);
@@ -538,7 +538,7 @@ public class ClientMain {
 
             String reply = in.readLine();
             in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
-            logged =  reply.equals(Communication.success) ? false : true;
+            logged =  reply.equals(Communication.Success.toString()) ? false : true;
             
             if ( logged ){
                 System.out.println("Logout fallita: " + reply);
@@ -572,7 +572,7 @@ public class ClientMain {
             out.println(request);
 
             String reply = in.readLine();
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println("LIST_USERS fallita: " + reply);
                 in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
                 return false;
@@ -591,7 +591,6 @@ public class ClientMain {
     }
 
     public static boolean listFollowers(){
-        System.out.println("LIST_FOLLOWERS");
         System.out.println(followers.toString());
 
         return true;
@@ -604,7 +603,7 @@ public class ClientMain {
             out.println(request);
 
             String reply = in.readLine();
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println(Operation.LIST_FOLLOWING + " fallita: " + reply);
                 in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
                 return false;
@@ -632,7 +631,7 @@ public class ClientMain {
             String reply = in.readLine();
             in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
 
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println("FOLLOW_USER fallita: " + reply);
                 return false;
             }
@@ -657,7 +656,7 @@ public class ClientMain {
             String reply = in.readLine();
             in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
 
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println("UNFOLLOW_USER fallita: " + reply);
                 return false;
             }
@@ -680,14 +679,18 @@ public class ClientMain {
         try{
             out.println(request);
             String reply = in.readLine();
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println("VIEW_BLOG fallita: " + reply);
                 in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
                 return false;
             }
 
+            String blog = "", s = "";
+            while ( !( s = in.readLine() ).equals(";") )
+                blog = blog + s + "\n";
+            
             // Stampo a video il blog di thisUser
-            System.out.println(in.readLine());
+            System.out.println(blog);
 
         } catch ( IOException e ){
             if ( DEBUG ) e.printStackTrace();
@@ -706,7 +709,7 @@ public class ClientMain {
             String reply = in.readLine();
             in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
 
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println("CREATE_POST fallita: " + reply);
                 return false;
             }
@@ -730,14 +733,17 @@ public class ClientMain {
             out.println(request);
 
             String reply = in.readLine();
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println(Operation.SHOW_FEED + " fallita: " + reply);
                 in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
                 return false;
             }
+            String feed = "", s = "";
+            while ( !( s = in.readLine() ).equals(";") )
+                feed = feed + s + "\n";
 
             // Stampo a video il feed di thisUser
-            System.out.println(in.readLine());
+            System.out.println(feed);
 
         } catch ( IOException e ){
             // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
@@ -757,15 +763,15 @@ public class ClientMain {
             out.println(request);
 
             String reply = in.readLine();
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println(Operation.SHOW_POST + " fallita: " + reply);
                 in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
                 return false;
             }
 
             String post = "", s = "";
-            while ( ( s = in.readLine() ) != null )
-                post = post + s;
+            while ( !( s = in.readLine() ).equals(";") )
+                post = post + s + "\n";
 
             // Stampo a video il post richiesto
             System.out.println(post);
@@ -789,7 +795,7 @@ public class ClientMain {
             String reply = in.readLine();
             in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
 
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println(Operation.DELETE_POST + " fallita: " + reply);
                 return false;
             }
@@ -814,7 +820,7 @@ public class ClientMain {
             String reply = in.readLine();
             in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
 
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println(Operation.REWIN_POST + " fallita: " + reply);
                 return false;
             }
@@ -839,7 +845,7 @@ public class ClientMain {
             String reply = in.readLine();
             in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
 
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println(Operation.RATE_POST + " fallita: " + reply);
                 return false;
             }
@@ -864,7 +870,7 @@ public class ClientMain {
             String reply = in.readLine();
             in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
 
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println(Operation.ADD_COMMENT + " fallita: " + reply);
                 return false;
             }
@@ -888,7 +894,7 @@ public class ClientMain {
             out.println(request);
 
             String reply = in.readLine();
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println(Operation.GET_WALLET + " fallita: " + reply);
                 in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
                 return false;
@@ -915,7 +921,7 @@ public class ClientMain {
             out.println(request);
 
             String reply = in.readLine();
-            if ( !reply.equals(Communication.success) ){
+            if ( !reply.equals(Communication.Success.toString()) ){
                 System.err.println(Operation.GET_WALLET_BITCOIN + " fallita: " + reply);
                 in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
                 return false;

@@ -1,351 +1,161 @@
 {
-  "ciao": {
-    "nickname": "ciao",
-    "psw": "$2a$10$iGVFJBx7Dt0vGl7JVPTmGuxGQ1dCbf7jCZag/XM2euVwmBrDWWS.K",
+  "bene": {
+    "nickname": "bene",
+    "psw": "$2a$10$NYC2NnzLVaV7/Cyl2dKW9u2G8XrHFMLNM7Iz2CXsbglU0pmH.S0f2",
     "follower": [
-      "Chiara",
-      "Luca",
-      "NewFollower",
+      "chiara",
       "erica"
     ],
-    "following": [],
+    "following": [
+      "erica"
+    ],
     "loggedIn": false,
     "tags": [
-      "uno",
-      "due"
+      "a"
     ],
-    "postRewinned": [],
+    "postRewinned": [
+      2
+    ],
     "blog": [
       {
         "idPost": 1,
-        "title": "Titolo",
-        "author": "Erica",
-        "content": "Contenuto del post",
-        "newVotes": {
-          "Carlo": "LIKE",
-          "Gianni": "LIKE",
-          "Luca": "UNLIKE"
-        },
+        "title": "unpost",
+        "author": "bene",
+        "content": "post di bene",
+        "newVotes": {},
         "oldVotes": {
-          "Chiara": "LIKE"
+          "erica": "LIKE"
         },
-        "newComments": {
-          "Carlo": [
-            "Un commento di Carlo",
-            "Un altro commento di Carlo"
-          ]
+        "newComments": {},
+        "oldComments": {
+          "erica": []
         },
-        "oldComments": {},
         "rewinners": [
-          "Gianni"
+          "erica"
         ],
-        "nIterations": 2
+        "nIterations": 1
       }
     ],
-    "wallet": 0.0
-  },
-  "prova": {
-    "nickname": "prova",
-    "psw": "$2a$10$7xdJW4/rY3qv01HU56Ysj.bXhS0Bq16DfmX.gkgG8OPNfhz8fiGpG",
-    "follower": [
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
-  },
-  "un": {
-    "nickname": "un",
-    "psw": "$2a$10$ZPkqwddOtqo1NNMb1hpY6uiFETSrXS7gKSH94JSM522JyHqJS/WN.",
-    "follower": [
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
-  },
-  "ancora": {
-    "nickname": "ancora",
-    "psw": "$2a$10$X6m1MDr/XoqRP1WeulpHj.lXVc5k8cYdQVArnaslWCWbfSlaKInp6",
-    "follower": [
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "prova"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
-  },
-  "nuovo": {
-    "nickname": "nuovo",
-    "psw": "$2a$10$LsPtGUtdpK3duGQ0lm68P.us/AQdLrpsxjj1DkwKPEB2qdY7pnHiW",
-    "follower": [
-      "NewFollower",
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
-  },
-  "perche": {
-    "nickname": "perche",
-    "psw": "$2a$10$c.HpJ0kpmj1WvifjHqed0uhDQnxxVSYG8UOhBc.fSJbHY2g1yEuTS",
-    "follower": [
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
-  },
-  "ecco": {
-    "nickname": "ecco",
-    "psw": "$2a$10$zuNuyt2a0oWd91iYW6vT4ONcjWGtEYQksXjDt.lUIQ.SKoGUGIURC",
-    "follower": [
-      "NewFollower",
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
-  },
-  "altra": {
-    "nickname": "altra",
-    "psw": "$2a$10$Eu0VI44o5ITPAX3RKFpf0ucb0ytWo/bFK98Hdjtz.tWC5Jwy9bQwC",
-    "follower": [
-      "NewFollower",
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
+    "wallet": [
+      {
+        "date": "Jun 6, 2022, 11:43:25 AM",
+        "value": 1.4268408695139467
+      }
+    ]
   },
   "chiara": {
     "nickname": "chiara",
-    "psw": "$2a$10$2zFqWwsZdf1YudAnBviCQ.I4aQP4Tr6CrnQcaD70OvopTOzBWuXcG",
+    "psw": "$2a$10$BmffNLRK2L4Q1nNsL5MkluTIcluArn3bAav.RgVrHIcXIks6O.5mS",
     "follower": [
-      "NewFollower",
-      "UnFollower"
+      "erica"
     ],
-    "following": [],
+    "following": [
+      "bene",
+      "erica"
+    ],
     "loggedIn": false,
     "tags": [
-      "a"
+      "due",
+      "uno"
     ],
     "postRewinned": [],
     "blog": [],
-    "wallet": 0.0
-  },
-  "tizia": {
-    "nickname": "tizia",
-    "psw": "$2a$10$Pe2/.7nzKfsMY0dgMsNXS.zN3kcf7ifaf7S9AUSvx0t7KxD1FVEEO",
-    "follower": [
-      "NewFollower",
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
-  },
-  "uff": {
-    "nickname": "uff",
-    "psw": "$2a$10$Yp.ZT6S4XeHwJCVSdtLl/eHC8lWWPY.yqQ9GDxfYXpxTR8A3afkxS",
-    "follower": [
-      "NewFollower",
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a",
-      "uno",
-      "tag"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
-  },
-  "e": {
-    "nickname": "e",
-    "psw": "$2a$10$A/v0Lfa2B9Xx6Sl7TjRP7O8teLNdYgJQS9KLcwtcQty.Kou84aEI.",
-    "follower": [
-      "NewFollower",
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a",
-      "uno",
-      "tag"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
-  },
-  "eeeeh": {
-    "nickname": "eeeeh",
-    "psw": "$2a$10$3tmpLgnMybO9HAEOAC0.1uup5fy5/YpVaNCw/C0mgM7ybFdh45oFG",
-    "follower": [
-      "NewFollower",
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a",
-      "uno",
-      "tag"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
-  },
-  "oh": {
-    "nickname": "oh",
-    "psw": "$2a$10$zKZJYaSDRRJM.j2U2Lh9sO7ik/N43qnjXNnHyHZp8e8JZBtpj1xBq",
-    "follower": [
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a",
-      "uno",
-      "tag"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
-  },
-  "anna": {
-    "nickname": "anna",
-    "psw": "$2a$10$Bv1xxewL0tFoZXHNdEhnxemK/Xq8Owp72eXc1fXtRVdfozxca/BDq",
-    "follower": [
-      "NewFollower",
-      "UnFollower"
-    ],
-    "following": [],
-    "loggedIn": false,
-    "tags": [
-      "a"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": 0.0
+    "wallet": [
+      {
+        "date": "Jun 6, 2022, 11:44:36 AM",
+        "value": 0.17917593624308684
+      }
+    ]
   },
   "erica": {
     "nickname": "erica",
-    "psw": "$2a$10$bEBL05EeJszumRjsEyas/OMdWJ/3meOvQfTMN9L8rKWBbOc41CS.S",
+    "psw": "$2a$10$l3eSlDKhplElAUTz2lzMyu0tvJhsn.z54mNjHq2.NJ4ct0dGSizKy",
     "follower": [
-      "NewFollower",
+      "chiara",
       "bene"
     ],
     "following": [
       "bene",
-      "ciao"
+      "chiara"
     ],
     "loggedIn": false,
     "tags": [
-      "che",
-      "piace",
-      "un",
-      "tag",
-      "mi"
+      "a",
+      "due",
+      "tre",
+      "uno",
+      "tag"
     ],
-    "postRewinned": [],
+    "postRewinned": [
+      1
+    ],
     "blog": [
       {
         "idPost": 2,
-        "title": "ilprimopost",
+        "title": "altro",
         "author": "erica",
-        "content": "contenuto del posto ",
+        "content": "post tanto per",
         "newVotes": {},
         "oldVotes": {},
         "newComments": {},
-        "oldComments": {},
-        "rewinners": [],
-        "nIterations": 0
+        "oldComments": {
+          "bene": []
+        },
+        "rewinners": [
+          "bene"
+        ],
+        "nIterations": 1
       },
       {
         "idPost": 3,
-        "title": "titolo",
+        "title": "aaa",
         "author": "erica",
-        "content": "evvivaaaaa \n",
+        "content": "adjkfjakl",
         "newVotes": {},
-        "oldVotes": {},
+        "oldVotes": {
+          "bene": "LIKE",
+          "chiara": "LIKE"
+        },
         "newComments": {},
-        "oldComments": {},
+        "oldComments": {
+          "chiara": []
+        },
         "rewinners": [],
-        "nIterations": 0
+        "nIterations": 1
       },
       {
         "idPost": 4,
-        "title": "uuuu",
+        "title": "quattro",
         "author": "erica",
-        "content": "aaaaaaaaah \n",
+        "content": "djkfajdddd",
         "newVotes": {},
         "oldVotes": {},
         "newComments": {},
         "oldComments": {},
         "rewinners": [],
-        "nIterations": 0
+        "nIterations": 1
       }
     ],
-    "wallet": 0.0
+    "wallet": [
+      {
+        "date": "Jun 6, 2022, 11:44:46 AM",
+        "value": 1.9879253494527958
+      }
+    ]
   },
-  "bene": {
-    "nickname": "bene",
-    "psw": "$2a$10$rN6qVBnLdTx8hL37ivX5nutwY9h8Gll9wCg44rDpbOqd2fgioKndS",
-    "follower": [
-      "erica"
-    ],
-    "following": [
-      "erica"
-    ],
+  "anna": {
+    "nickname": "anna",
+    "psw": "$2a$10$DxTfLgQctHguo/E/Ne1wnOpjetaCe57aPztRhgcEvyr1ftRMo37nS",
+    "follower": [],
+    "following": [],
     "loggedIn": false,
     "tags": [
-      "uffa"
+      "a",
+      "un",
+      "tag"
     ],
     "postRewinned": [],
     "blog": [],
-    "wallet": 0.0
+    "wallet": []
   }
 }

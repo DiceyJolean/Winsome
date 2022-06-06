@@ -1,7 +1,10 @@
 package server;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import server.bcrypt.src.BCrypt;
@@ -24,7 +27,7 @@ public class WinsomeUser implements Serializable {
     private Set<String> tags;
     private Set<Integer> postRewinned; // I post sono indicati univocamente dal loro postID
     private Set<WinsomePost> blog; // Insieme dei post pubblicati da questo utente TODO ridondanza?? Sarà solo un riferimento, giustamente!
-    private double wallet;
+    private List<WinsomeWallet> wallet;
 
     /**
      * Crea un nuovo utente Winsome con associata password (hashata) e lista di tag (NON modificabile)
@@ -53,7 +56,7 @@ public class WinsomeUser implements Serializable {
         this.follower = new HashSet<String>();
         this.following = new HashSet<String>();
         this.loggedIn = false;
-        this.wallet = 0;
+        this.wallet = new ArrayList<WinsomeWallet>();
         this.postRewinned = new HashSet<Integer>();
         this.blog = new HashSet<WinsomePost>();
         this.tags = new HashSet<String>();
@@ -207,8 +210,8 @@ public class WinsomeUser implements Serializable {
      * 
      * @return il valore del portafoglio
      */
-    public double getReward(){
-        return this.wallet;
+    public List<WinsomeWallet> getReward(){
+        return wallet;
     }
 
     /**
@@ -217,15 +220,15 @@ public class WinsomeUser implements Serializable {
      * @param newReward Saldo da aggiungere al portafoglio
      * @throws IllegalArgumentException se newReward è minore di zero
      */
-    public void updateReward(Double newReward)
+    public void updateReward(Date date, double newReward)
     throws IllegalArgumentException {
-        if ( newReward == null )
-            this.wallet += 0;
-
-        if ( newReward.doubleValue() < 0 )
+        if ( newReward < 0 )
             throw new IllegalArgumentException();
+            
+        if ( newReward == 0 )
+            return;
 
-        this.wallet += newReward.doubleValue();
+        wallet.add(new WinsomeWallet(date, newReward));
     }
 
     /**
