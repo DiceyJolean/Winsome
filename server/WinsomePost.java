@@ -140,6 +140,10 @@ public class WinsomePost implements Serializable{
             return false;
             // throw new NullArgumentException();
 
+        // Non posso votare un mio post
+        if ( author.equals(user) )
+            return false;
+
         Vote vote;
         switch ( value ){
             case 1:{
@@ -157,7 +161,7 @@ public class WinsomePost implements Serializable{
         
         // Controllo che l'utente non abbia già aggiunto un voto prima dell'ultima iterazione del reward
         synchronized (this) {
-        if ( this.oldComments.get(user) == null )
+        if ( this.oldVotes.get(user) == null )
             if ( this.newVotes.putIfAbsent(user, vote) != null )
                 return true;
         }
@@ -170,6 +174,11 @@ public class WinsomePost implements Serializable{
         if ( comment == null || user == null )
             return false;
             // throw new NullArgumentException();
+
+        // Non posso commentare un mio post
+        if ( author.equals(user) )
+            return false;
+    
 
         // Aggiungo sempre in newComment
         // Sposto tra new e old dopo il calcolo del reward

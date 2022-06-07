@@ -167,7 +167,7 @@ public class WinsomeUser implements Serializable {
     throws IllegalArgumentException {
         if ( postId < 0 )
             throw new IllegalArgumentException();
-
+        
         return this.postRewinned.add(postId);
     }
 

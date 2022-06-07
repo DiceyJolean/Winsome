@@ -900,8 +900,12 @@ public class ClientMain {
                 return false;
             }
 
+            String wallet = "", s = "";
+            while ( !( s = in.readLine() ).equals(";") )
+                wallet = wallet + s + "\n";
+
             // Stampo a video il wallet di thisUser
-            System.out.println(in.readLine());
+            System.out.println(wallet);
 
         } catch ( IOException e ){
             // TODO in tutti questi casi di IOException penso sia meglio far terminare il client

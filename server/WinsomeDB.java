@@ -1,6 +1,7 @@
 package server;
 
 import java.io.Serializable;
+import java.net.URL;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -264,6 +265,10 @@ public class WinsomeDB implements Serializable {
         if ( idPost < 0 || username == null )
             return false;
 
+        // Non posso fare il rewin di un mio post
+        if ( posts.get(idPost).getAuthor().equals(username) )
+            return false;
+        
         // Posso fare il rewind di un post solo se è nel mio feed
         if ( showFeed(username).contains(posts.get(idPost)) )
             if ( users.get(username).addRewin(idPost) )
@@ -303,15 +308,6 @@ public class WinsomeDB implements Serializable {
 
         return users.get(username).getReward();
     }
-
-    public double getWalletInBitcoin(String username){
-        if ( username == null )
-            return 0.0;
-
-        // TODO
-        return 0.0;
-    }
-
 
 
 

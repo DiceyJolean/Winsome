@@ -4,7 +4,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
+import java.net.URL;
+import java.net.URLConnection;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -18,6 +21,7 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import shared.*;
@@ -29,6 +33,7 @@ public class ServerMain {
 
     private static final boolean DEBUG = true;
     private static final int KILOBYTE = 1024;
+    private static final String randomURL = "https://www.random.org/decimal-fractions/?num=1&dec=4&col=1&format=plain&rnd=new";
     
     private static volatile Boolean toStop = false; // Deve essere un oggetto per il passaggio per riferimento
 
@@ -43,6 +48,28 @@ public class ServerMain {
     private static int rewardPeriod = -1;
     private static int autosavePeriod = -1;
     private static float percAuth = -1;
+
+    private static double getRandom(){
+        double random = 0.0;
+        try{
+            URL url = new URL(randomURL);
+            URLConnection urlConn = url.openConnection();
+            BufferedReader buf = new BufferedReader(new InputStreamReader(urlConn.getInputStream()));
+            random = Double.parseDouble(buf.readLine());
+
+        } catch ( NumberFormatException e ){
+            // TODO se viene sollevata un'eccezione qui dentro, ha senso terminare il server
+            e.printStackTrace();
+        } catch ( IOException e ){
+            // TODO se viene sollevata un'eccezione qui dentro, ha senso terminare il server
+            e.printStackTrace();
+        } catch ( Exception e ){
+            // TODO se viene sollevata un'eccezione qui dentro, ha senso terminare il server
+            e.printStackTrace();
+        }
+        
+        return random;
+    }
 
     private static String toSimplePost(Set<WinsomePost> tmp){
         StringBuilder s = new StringBuilder();
@@ -91,10 +118,26 @@ public class ServerMain {
                     break;
                 }
                 case GET_WALLET:{
-                    attr = Arrays.toString( database.getWallet(user).toArray() );
+                    attr = "";
+                    List<WinsomeWallet> list = database.getWallet(user);
+                    for ( WinsomeWallet w : list )
+                        attr = attr + w.getKey() + " " + w.getValue() + "\n";
+
+                    attr += ";";
+
                     break;
                 }
-                // status = database.getWalletInBitcoin(user); TODO 
+                case GET_WALLET_BITCOIN:{
+                    List<WinsomeWallet> list = database.getWallet(user);
+                    double n = getRandom();
+                    attr = "";
+                    for ( WinsomeWallet w : list )
+                        attr = attr + w.getKey() + " " + w.getValue()*n + " (Tasso di conversione: " + n + ")\n";
+
+                    attr += ";";
+
+                    break;
+                }
                 case LIST_FOLLOWING:{
                     attr = Arrays.toString( database.listFollowing(user).toArray() );
                     break;
