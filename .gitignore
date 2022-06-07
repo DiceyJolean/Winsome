@@ -1,3 +1,4 @@
 client/*.class
 server/*.class
 shared/*.class
+shared/Communication.java

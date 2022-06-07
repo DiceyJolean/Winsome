@@ -14,7 +14,7 @@
       "a"
     ],
     "postRewinned": [
-      2
+      1
     ],
     "blog": [
       {
@@ -22,11 +22,11 @@
         "title": "unpost",
         "author": "bene",
         "content": "post di bene",
-        "newVotes": {
+        "newVotes": {},
+        "oldVotes": {
           "erica": "LIKE",
           "chiara": "UNLIKE"
         },
-        "oldVotes": {},
         "newComments": {},
         "oldComments": {
           "erica": []
@@ -34,7 +34,7 @@
         "rewinners": [
           "erica"
         ],
-        "nIterations": 1
+        "nIterations": 22
       }
     ],
     "wallet": [
@@ -44,7 +44,11 @@
       },
       {
         "date": "Jun 6, 2022, 3:42:42 PM",
-        "value": 0.017887669442287566
+        "value": 2.0178876694422874
+      },
+      {
+        "date": "Jun 7, 2022, 10:54:55 AM",
+        "value": 2.0549306111592855
       }
     ]
   },
@@ -69,6 +73,10 @@
       {
         "date": "Jun 6, 2022, 11:44:36 AM",
         "value": 0.17917593624308684
+      },
+      {
+        "date": "Jun 7, 2022, 10:54:55 AM",
+        "value": 0.5493061115928572
       }
     ]
   },
@@ -80,8 +88,8 @@
       "bene"
     ],
     "following": [
-      "bene",
-      "chiara"
+      "chiara",
+      "bene"
     ],
     "loggedIn": false,
     "tags": [
@@ -96,39 +104,21 @@
     ],
     "blog": [
       {
-        "idPost": 2,
-        "title": "altro",
-        "author": "erica",
-        "content": "post tanto per",
-        "newVotes": {},
-        "oldVotes": {
-          "chiara": "UNLIKE"
-        },
-        "newComments": {},
-        "oldComments": {
-          "bene": []
-        },
-        "rewinners": [
-          "bene"
-        ],
-        "nIterations": 1
-      },
-      {
         "idPost": 3,
         "title": "aaa",
         "author": "erica",
         "content": "adjkfjakl",
-        "newVotes": {
+        "newVotes": {},
+        "oldVotes": {
           "bene": "LIKE",
           "chiara": "LIKE"
         },
-        "oldVotes": {},
         "newComments": {},
         "oldComments": {
           "chiara": []
         },
         "rewinners": [],
-        "nIterations": 1
+        "nIterations": 20
       },
       {
         "idPost": 4,
@@ -140,13 +130,36 @@
         "newComments": {},
         "oldComments": {},
         "rewinners": [],
-        "nIterations": 1
+        "nIterations": 20
+      },
+      {
+        "idPost": 1,
+        "title": "unpost",
+        "author": "bene",
+        "content": "post di bene",
+        "newVotes": {},
+        "oldVotes": {
+          "erica": "LIKE",
+          "chiara": "UNLIKE"
+        },
+        "newComments": {},
+        "oldComments": {
+          "erica": []
+        },
+        "rewinners": [
+          "erica"
+        ],
+        "nIterations": 22
       }
     ],
     "wallet": [
       {
         "date": "Jun 6, 2022, 11:44:46 AM",
         "value": 1.9879253494527958
+      },
+      {
+        "date": "Jun 7, 2022, 10:54:55 AM",
+        "value": 2.4394449220154835
       }
     ]
   },

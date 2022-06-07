@@ -365,7 +365,7 @@ public class ClientMain {
                         }
 
                         try{
-                            int idPost = Integer.parseInt(req[2]);
+                            int idPost = Integer.parseInt(req[1]);
 
                             deletePost(idPost);
                             break;
@@ -381,7 +381,7 @@ public class ClientMain {
                         }
 
                         try{
-                            int idPost = Integer.parseInt(req[2]);
+                            int idPost = Integer.parseInt(req[1]);
 
                             rewinPost(idPost);
                             break;
@@ -931,8 +931,12 @@ public class ClientMain {
                 return false;
             }
 
-            // Stampo a video il wallet in bitcoin di thisUser
-            System.out.println(in.readLine());
+            String walletbtc = "", s = "";
+            while ( !( s = in.readLine() ).equals(";") )
+                walletbtc = walletbtc + s + "\n";
+
+            // Stampo a video il wallet di thisUser
+            System.out.println(walletbtc);
 
         } catch ( IOException e ){
             // TODO in tutti questi casi di IOException penso sia meglio far terminare il client

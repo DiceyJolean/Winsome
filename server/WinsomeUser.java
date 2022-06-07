@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Set;
 
 import server.bcrypt.src.BCrypt;
-import shared.*;
+import server.exceptions.*;
 
 // TODO nessun metodo è sincronizzato, va bene? Potrebbero accedere allo stesso utente più thread?
 // Accederebbero prima al DB di user, potrebbe capitare di dover fare due operazioni contemporaneamente? Perché no...
@@ -19,34 +19,34 @@ import shared.*;
 */
 public class WinsomeUser implements Serializable {
         
-    private String nickname;
-    private String psw;
-    private Set<String> follower;
-    private Set<String> following;
-    private boolean loggedIn;
-    private Set<String> tags;
-    private Set<Integer> postRewinned; // I post sono indicati univocamente dal loro postID
+    private String nickname; // Nome univoco dell'utente all'interno di Winsome
+    private String psw; // Password dell'utente per effettuare il login
+    private Set<String> follower; // Insieme dei follower dell'utente
+    private Set<String> following; // Insieme degli utenti seguiti dall'utente
+    private boolean loggedIn; // Flag che indica se l'utente è attualmente loggato
+    private Set<String> tags; // Insieme dei tag dell'utente
+    private Set<Integer> postRewinned; // Insieme segli id dei post rewinnati dall'utente
     private Set<WinsomePost> blog; // Insieme dei post pubblicati da questo utente TODO ridondanza?? Sarà solo un riferimento, giustamente!
-    private List<WinsomeWallet> wallet;
+    private List<WinsomeWallet> wallet; // Lista con lo storico degli aggiornamenti del portafoglio dell'utente
 
     /**
      * Crea un nuovo utente Winsome con associata password (hashata) e lista di tag (NON modificabile)
      * 
      * @param nickname Nickname univoco dell'utente
      * @param psw Password per il login
-     * @param tags Lista di tag (al più cinque)
+     * @param tags Lista di tag (minimo uno, al più cinque)
      * @return Un nuovo oggetto utente di Winsome
      * @throws IndexOutOfBoundsException se sono indicati più di 5 tags o meno di 1
-     * @throws NullArgumentException se nickname o psw sono null
+     * @throws NullPointerException se nickname o psw sono null
      */
-    public WinsomeUser(String nickname, String psw, Set<String> tags){
+    public WinsomeUser(String nickname, String psw, Set<String> tags)
+    throws IndexOutOfBoundsException, NullPointerException {
     // throws IndexOutOfBoundsException, NullArgumentException {
         if ( tags.size() < 1 || tags.size() > 5 )
             throw new IndexOutOfBoundsException();
 
         if ( nickname == null || psw == null )
-            return;
-            // throw new NullArgumentException();
+            throw new NullPointerException();
 
         String salt = BCrypt.gensalt();
         String hashedPsw = BCrypt.hashpw(psw, salt);
@@ -65,15 +65,17 @@ public class WinsomeUser implements Serializable {
 
     /**
      * Si ottiene la psw hashata dell'utente
+     * 
      * @return La psw per il login dell'utente
      */
     public String getPsw(){
         // Gli oggetti String sono immutabili, quindi posso restituire il riferimento
-        return this.psw;
+        return psw;
     }
 
     /**
      * Si ottiene l'insieme dei tag associati all'utente
+     * 
      * @return Una deep copy dell'insieme dei tag dell'utente
      */
     public Set<String> getTags(){
@@ -83,11 +85,12 @@ public class WinsomeUser implements Serializable {
 
     /**
      * Si ottiene il nickname dell'utente
+     * 
      * @return Il nickname dell'utente
      */
     public String getNickname(){
         // Gli oggetti String sono immutabili, quindi posso restituire il riferimento
-        return this.nickname;
+        return nickname;
     }
 
     /**
@@ -96,19 +99,19 @@ public class WinsomeUser implements Serializable {
      * @param psw Password dell'utente che vuole connettersi
      * @return true se il login ha avuto successo, false altrimenti
      */
-    public boolean login(String psw){
+    public boolean login(String psw)
+    throws AlreadyLoggedException, WrongPasswordException, NullPointerException {
         if ( loggedIn )
-            // Se l'utente è già connesso rispondo con esito negativo
-            // Gestisce anche il caso di login di uno stesso utente da client diversi
-            return false;
+            throw new AlreadyLoggedException();
 
         if ( psw == null )
-            return false;
+            throw new NullPointerException();
 
-        if ( BCrypt.checkpw(psw, this.psw) )
-            this.loggedIn = true;
-
-        return this.loggedIn;
+        if ( !BCrypt.checkpw(psw, this.psw) )
+            throw new WrongPasswordException();
+            
+        loggedIn = true;
+        return true;
     }
 
     public Set<String> getFollowing(){
@@ -120,17 +123,17 @@ public class WinsomeUser implements Serializable {
      * 
      * @param user Utente da aggiunge ai follower
      * @return true se l'inserimento ha avuto successo, false altrimenti
-     * @throws NullArgumentException se user è null
+     * @throws NullPointerException se user è null
      */
-    public boolean addFollower(String user){
-    /* throws NullArgumentException {
+    public boolean addFollower(String user)
+    throws NullPointerException, SameUserException {
         if ( user == null )
-            throw new NullArgumentException();
-    */
+            throw new NullPointerException();
+    
         if ( nickname.equals(user) )
             // Non è possibile seguire se stessi
-            return false;
-
+            throw new SameUserException();
+            
         follower.add(user);
         return true;
     }
@@ -140,27 +143,29 @@ public class WinsomeUser implements Serializable {
      * 
      * @param user Utente da aggiungere ai seguiti
      * @return true se l'inserimento ha avuto successo, false altrimenti
-     * @throws NullArgumentException se user è null
+     * @throws NullPointerException se user è null
      */
-    public boolean addFollowing(String user){
-    // throws NullArgumentException {
-        /*if ( user == null )
-            throw new NullArgumentException();
-            */
+    public boolean addFollowing(String user)
+    throws NullPointerException, SameUserException {
+
+        if ( user == null )
+            throw new NullPointerException();
 
         if ( nickname.equals(user) )
             // Non è possibile essere seguiti da se stessi
-            return false;
+            throw new SameUserException();
 
         following.add(user);
         return true;
     }
     
     /**
-     * Aggiunge un post a quelli rewinnati
+     * Aggiunge un post a quelli rewinnati, 
+     * se il post era già stato rewinnato l'operazione ha comunque successo 
+     * dato che l'operazione ha gli stessi effetti collaterali
      * 
      * @param postId ID del post rewinnato
-     * @return true se l'inserimento ha avuto successo, false altrimenti
+     * @return true se l'inserimento ha avuto successo
      * @throws IllegalArgumentException se postId è minore di zero
      */
     public boolean addRewin(int postId)
@@ -168,7 +173,8 @@ public class WinsomeUser implements Serializable {
         if ( postId < 0 )
             throw new IllegalArgumentException();
         
-        return this.postRewinned.add(postId);
+        postRewinned.add(postId);
+        return true;
     }
 
     /**
@@ -187,6 +193,7 @@ public class WinsomeUser implements Serializable {
     }
 
     // Restituisce una copia dei follower di questo utente
+    // TODO questa funzione va sincronizzata in qualche modo perché viene invocata dai client tramite RMI
     public Set<String> getFollower(){
         Set<String> copy = new HashSet<String>();
         copy.addAll(follower);
@@ -227,6 +234,11 @@ public class WinsomeUser implements Serializable {
             
         if ( newReward == 0 )
             return;
+
+        if ( wallet.size() != 0 ){
+            WinsomeWallet last = wallet.get(wallet.size()-1);
+            newReward =+ last.getValue();
+        }
 
         wallet.add(new WinsomeWallet(date, newReward));
     }
@@ -296,11 +308,11 @@ public class WinsomeUser implements Serializable {
     }
 
     /**
-     * Restituisce una deep copy dei post pubblicati dall'utente
+     * Restituisce un riferimento ai post pubblicati dall'utente
      * @return Una copia dei post pubblicati dall'utente
      */
     public Set<WinsomePost> getPosts(){
-        return new HashSet<WinsomePost>(this.blog);
+        return this.blog;
     }
 
 

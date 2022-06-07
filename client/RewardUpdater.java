@@ -56,6 +56,7 @@ public class RewardUpdater implements Runnable{
             try{
                 multicastSocket.receive(packet);
                 System.out.println("Calcolo delle ricompense effettuato, il portafoglio è stato aggiornato");
+                System.out.flush();
             } catch ( IOException e ){
                 // Il client termina e chiude la socket per permettere a questo thread di terminare a sua volta
                 return;

@@ -1,7 +1,6 @@
 package server;
 
 import java.io.Serializable;
-import java.net.URL;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -83,13 +82,17 @@ public class WinsomeDB implements Serializable {
         
         // Devo rendere consistenti i rewin di questo post
         Set<String> rewinners = removed.getRewinners();
-        for ( String rewinner : rewinners ){
+        for ( String rewinner : rewinners )
             users.get(rewinner).removeRewin(id);
-        }
 
         return removed;
     }
 
+
+
+
+
+    
 
 
 
@@ -255,7 +258,7 @@ public class WinsomeDB implements Serializable {
 
         // Se l'eliminazione va a buon fine
         if ( author.removePost(toRemove) )
-            if ( posts.remove(idPost) != null )
+            if ( removePost(idPost) != null )
                 return true;
 
         return false;
@@ -315,6 +318,16 @@ public class WinsomeDB implements Serializable {
 
 
 
+
+
+
+
+
+
+
+
+
+
     public boolean updateReward(Map<String, Double> rewardPerUser){
         // la concurrent hashmap accede alla struttura degli utenti, 
         // per cui se il server contemporaneamente 
@@ -332,7 +345,7 @@ public class WinsomeDB implements Serializable {
         return this;
     }
 
-    // Restituisce una deep copy dei post pubblicati dall'utente
+    // Restituisce un riferimento ai post pubblicati dall'utente
     public Set<WinsomePost> getPostPerUser(String user){
 
         // La get su users è threadsafe e getPosts restituisce una deep copy
@@ -344,6 +357,7 @@ public class WinsomeDB implements Serializable {
         return users;
     }
 
+    // La utilizza soltanto il metodo per il ripristino del database
     private boolean addPost(WinsomePost post){
         if ( post == null )
             return false;

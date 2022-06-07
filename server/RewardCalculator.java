@@ -9,8 +9,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import shared.NullArgumentException;
-
 // Classe che implementa il thread che periodicamente calcola le ricompense
 public class RewardCalculator implements Runnable{
 
