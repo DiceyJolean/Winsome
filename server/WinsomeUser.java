@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Set;
 
 import server.bcrypt.src.BCrypt;
-import server.exceptions.*;
 
 // TODO nessun metodo è sincronizzato, va bene? Potrebbero accedere allo stesso utente più thread?
 // Accederebbero prima al DB di user, potrebbe capitare di dover fare due operazioni contemporaneamente? Perché no...
@@ -100,15 +99,15 @@ public class WinsomeUser implements Serializable {
      * @return true se il login ha avuto successo, false altrimenti
      */
     public boolean login(String psw)
-    throws AlreadyLoggedException, WrongPasswordException, NullPointerException {
+    throws WinsomeException, NullPointerException {
         if ( loggedIn )
-            throw new AlreadyLoggedException();
+            throw new WinsomeException("L'utente ha già effettuato il login");
 
         if ( psw == null )
             throw new NullPointerException();
 
         if ( !BCrypt.checkpw(psw, this.psw) )
-            throw new WrongPasswordException();
+            throw new WinsomeException("Le password è errata");
             
         loggedIn = true;
         return true;
@@ -126,13 +125,13 @@ public class WinsomeUser implements Serializable {
      * @throws NullPointerException se user è null
      */
     public boolean addFollower(String user)
-    throws NullPointerException, SameUserException {
+    throws WinsomeException, NullPointerException {
         if ( user == null )
             throw new NullPointerException();
-    
+
         if ( nickname.equals(user) )
             // Non è possibile seguire se stessi
-            throw new SameUserException();
+            throw new WinsomeException("Non è possibile seguire se stessi");
             
         follower.add(user);
         return true;
@@ -146,14 +145,14 @@ public class WinsomeUser implements Serializable {
      * @throws NullPointerException se user è null
      */
     public boolean addFollowing(String user)
-    throws NullPointerException, SameUserException {
+    throws NullPointerException, WinsomeException {
 
         if ( user == null )
             throw new NullPointerException();
 
         if ( nickname.equals(user) )
             // Non è possibile essere seguiti da se stessi
-            throw new SameUserException();
+            throw new WinsomeException("Non è possibile essere seguiti da se stessi");
 
         following.add(user);
         return true;
@@ -184,12 +183,16 @@ public class WinsomeUser implements Serializable {
      * @return true se l'inserimento ha avuto successo, false altrimenti
      * @throws NullArgumentException se post è null
      */
-    public boolean addPost(WinsomePost post){
-    // throws NullArgumentException {
-        /*if ( post == null )
-            throw new NullArgumentException();*/
+    public boolean addPost(WinsomePost post)
+    throws WinsomeException, NullPointerException {
+        if ( post == null )
+            throw new NullPointerException();
 
-        return this.blog.add(post);
+        if ( post.getAuthor().equals(nickname) )
+            throw new WinsomeException("Incostistenza tra autore del post e utente");
+
+        blog.add(post);
+        return true;
     }
 
     // Restituisce una copia dei follower di questo utente
@@ -204,11 +207,12 @@ public class WinsomeUser implements Serializable {
     /** 
      * Effettua il logout dell'utente
     */
-    public boolean logout(){
+    public boolean logout()
+        throws WinsomeException{
         if ( !loggedIn )
-            return false;
+            throw new WinsomeException("L'utente non era loggato");
 
-        this.loggedIn = false;
+        loggedIn = false;
         return true;
     }
 
@@ -227,20 +231,24 @@ public class WinsomeUser implements Serializable {
      * @param newReward Saldo da aggiungere al portafoglio
      * @throws IllegalArgumentException se newReward è minore di zero
      */
-    public void updateReward(Date date, double newReward)
+    public boolean updateReward(Date date, double newReward)
     throws IllegalArgumentException {
         if ( newReward < 0 )
             throw new IllegalArgumentException();
+
+        if ( date == null )
+            throw new NullPointerException();
             
         if ( newReward == 0 )
-            return;
+            return true;
 
         if ( wallet.size() != 0 ){
             WinsomeWallet last = wallet.get(wallet.size()-1);
-            newReward =+ last.getValue();
+            newReward = newReward + last.getValue();
         }
 
         wallet.add(new WinsomeWallet(date, newReward));
+        return true;
     }
 
     /**
@@ -250,15 +258,13 @@ public class WinsomeUser implements Serializable {
      * @return true se la rimozione ha avuto successo, false altrimenti
      * @throws NullArgumentException se user è null
      */
-    public boolean removeFollower(String user){
-    // throws NullArgumentException {
-        /*
+    public boolean removeFollower(String user)
+    throws WinsomeException, NullPointerException {
         if ( user == null )
-            throw new NullArgumentException();
-        */
+            throw new NullPointerException();
+        
         if ( nickname.equals(user) )
-            // Non è possibile seguire se stessi
-            return false;
+            throw new WinsomeException("Non è possibile seguire se stessi");
 
         follower.remove(user);
         return true;
@@ -271,21 +277,28 @@ public class WinsomeUser implements Serializable {
      * @return true se la rimozione ha avuto successo, false altrimenti
      * @throws NullArgumentException se user è null
      */
-    public boolean removeFollowing(String user){
-    /* throws NullArgumentException {
+    public boolean removeFollowing(String user)
+    throws WinsomeException, NullPointerException {
         if ( user == null )
-            throw new NullArgumentException();
-    */
+            throw new NullPointerException();
+    
         if ( nickname.equals(user) )
-            // Non è possibile essere seguiti da se stessi
-            return false;
+            throw new WinsomeException("Non è possibile essere seguiti da se stessi");
 
         following.remove(user);
         return true;
     }
 
-    public boolean removePost(WinsomePost post){
-        return blog.remove(post);
+    public boolean removePost(WinsomePost post)
+    throws WinsomeException, NullPointerException {
+        if ( post == null )
+            throw new NullPointerException();
+
+        if ( !blog.contains(post) )
+            throw new WinsomeException("Il post non era presente nel blog dell'utente");
+
+        blog.remove(post);
+        return true;
     }
 
     /**
@@ -300,11 +313,12 @@ public class WinsomeUser implements Serializable {
         if ( postId < 0 )
             throw new IllegalArgumentException();
 
-        return this.postRewinned.remove(postId);
+        postRewinned.remove(postId);
+        return true;
     }
 
     public Set<Integer> getRewin(){
-        return this.postRewinned;
+        return postRewinned;
     }
 
     /**
@@ -312,7 +326,7 @@ public class WinsomeUser implements Serializable {
      * @return Una copia dei post pubblicati dall'utente
      */
     public Set<WinsomePost> getPosts(){
-        return this.blog;
+        return blog;
     }
 
 

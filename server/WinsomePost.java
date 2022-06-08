@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class WinsomePost implements Serializable{
+public class WinsomePost {// implements Serializable{
 
     private int idPost; // Id del post
     private String title; // Titolo del post
@@ -33,31 +33,13 @@ public class WinsomePost implements Serializable{
             }
         }
 
-    public class PostView{
-        private int idPost;
-        private String title;
-        private String author;
-
-        public PostView(WinsomePost post){
-            idPost = post.getIdPost();
-            title = new String(post.getTitle());
-            author = new String(post.getAuthor());
-        }
-
-        public int getId(){
-            return idPost;
-        }
-
-        public String getTitle(){
-            return title;
-        }
-
-        public String getAuthor(){
-            return author;
-        }
-    }
-
     public WinsomePost(int idPost, String title, String author, String content){
+        if ( idPost < 0 )
+            throw new IllegalArgumentException();
+
+        if ( title == null || author == null || content == null )
+            throw new NullPointerException();
+
         this.idPost = idPost;
         this.title = new String(title);
         this.author = new String(author);
@@ -74,25 +56,24 @@ public class WinsomePost implements Serializable{
     // Non sono sincronizzati perché non possono essere modificati
 
     public int getIdPost(){
-        return this.idPost;
+        return idPost;
     }
 
     public String getTitle(){
-        return this.title;
+        return title;
     }
 
     public String getAuthor(){
-        return this.author;
+        return author;
     }
 
     public String getContent(){
-        return this.content;
+        return content;
     }
 
-    public Set<String> getRewinners(){
-        return rewinners;
-    }
 
+
+    
     public String toPrint(){
         Map<String, Vote> votes = new HashMap<String, Vote>(oldVotes);
         votes.putAll(newVotes);
@@ -132,17 +113,19 @@ public class WinsomePost implements Serializable{
             "\n\tN_ITER: " + nIterations + "\n";
     }
     
-    // =========== Setter
+    public Set<String> getRewinners(){
+        return new HashSet<String>(rewinners);
+    }
 
-    public boolean addVote(String user, int value){
+    public boolean addVote(String user, int value)
+    throws WinsomeException, NullPointerException, IllegalArgumentException {
     // throws NullArgumentException, IllegalArgumentException {
         if ( user == null )
-            return false;
-            // throw new NullArgumentException();
+            throw new NullPointerException();
 
         // Non posso votare un mio post
         if ( author.equals(user) )
-            return false;
+            throw new WinsomeException("Non è possibile votare un proprio post");
 
         Vote vote;
         switch ( value ){
@@ -166,40 +149,37 @@ public class WinsomePost implements Serializable{
                 return true;
         }
 
-        return false;                
+        throw new WinsomeException("L'utente aveva già votato il post in precedenza");
     }
 
-    public boolean addComment(String user, String comment){
-    // throws NullArgumentException {
+    public boolean addComment(String user, String comment)
+    throws WinsomeException, NullPointerException {
         if ( comment == null || user == null )
-            return false;
-            // throw new NullArgumentException();
+            throw new NullPointerException();
 
         // Non posso commentare un mio post
         if ( author.equals(user) )
-            return false;
+            throw new WinsomeException("Non è possibile commentare un proprio post");
     
-
         // Aggiungo sempre in newComment
         // Sposto tra new e old dopo il calcolo del reward
         synchronized ( this ){
             // TODO sistemare la concorrenza con il reward calculator
             
+            // Se non era presente l'entry adesso l'ho creata
             newComments.putIfAbsent(user, new ArrayList<String>());
-
-            return this.newComments.get(user).add(comment);
+            // Aggiungo un commento a quelli già presenti dello stesso utente
+            newComments.get(user).add(comment);
+            return true;
         }
     }
 
     public boolean rewinPost(String user){
-    // throws NullArgumentException {
         if ( user == null )
-            return false;
-            // throw new NullArgumentException();
+            throw new NullPointerException();
 
-        //synchronized (this){ TODO perché avevo messo synch? i rewin non sono di interesse nel calcolo della ricompensa
-            return rewinners.add(user);
-        //}
+        rewinners.add(user);
+        return true;
     }
 
 
@@ -224,12 +204,9 @@ public class WinsomePost implements Serializable{
                 // Aggiungo i commenti nel vecchio array di commenti
                 this.oldComments.get(entry.getKey()).addAll(entry.getValue());
             }
-            else{
+            else
                 // Creo una nuova entry in oldComments per fare lo switch
                 this.oldComments.put(entry.getKey(), entry.getValue());
-            }
-            // E svuoto il vecchio array
-            this.newComments.get(entry.getKey()).clear();
 
             // Posso scegliere se togliere o no anche l'autore del commento
             // Lo tolgo, così ho un'iterazione in meno essendoci una entry in meno

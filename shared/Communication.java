@@ -4,9 +4,9 @@ public enum Communication {
     Success("Successo"),
     AlreadyLogged("L'utente ha già effettuato il login"),
     SameUser("Non è possibile "),
-    WrongCredential(""),
-    NotLogged(""),
-    Failure("");
+    WrongCredential("La password o l'username sono errati"),
+    NotLogged("L'utente non ha effettuato il login"),
+    Failure("Errore generico");
 
     private String message;
 

@@ -85,7 +85,7 @@ public class ServerMain {
 
     private static String processRequest(String request){
         String reply = ""; // Messaggio di risposta da inviare al client
-        Communication description = Communication.Success; // Descrizione dell'esito dell'operazione
+        String description = Communication.Success.toString(); // Descrizione dell'esito dell'operazione
         String attr = ""; // Eventuali attributi da restituire al client
         
         // La richiesta è nel formato OPERATION;USERNAME;ATTRIBUTI
@@ -99,7 +99,7 @@ public class ServerMain {
         try{
             switch ( operation ){
                 case ADD_COMMENT:{
-                    description = database.addComment(user, Integer.parseInt(token[2]), token[3]) ? Communication.Success : Communication.Failure;
+                    description = database.addComment(user, Integer.parseInt(token[2]), token[3]) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case CREATE_POST:{
@@ -107,12 +107,12 @@ public class ServerMain {
                     break;
                 }
                 case DELETE_POST:{
-                    description = database.deletePost(user, Integer.parseInt(token[2])) ? Communication.Success : Communication.Failure;
+                    description = database.deletePost(user, Integer.parseInt(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case FOLLOW_USER:{
                     // user inizia a seguire
-                    description = database.followUser(user, token[2]) ? Communication.Success : Communication.Failure;
+                    description = database.followUser(user, token[2]) ? Communication.Success.toString() : Communication.Failure.toString();
                     // notifico all'utente che viene seguito che user ha iniziato a seguirlo
                     stub.doCallback(token[2], "FOLLOW;" + user +";");
                     break;
@@ -147,28 +147,28 @@ public class ServerMain {
                     break;
                 }
                 case LOGIN:{
-                    description = database.login(user, new String(token[2])) ? Communication.Success : Communication.Failure;
+                    description = database.login(user, new String(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case LOGOUT:{
-                    description = database.logout(user) ? Communication.Success : Communication.Failure;
+                    description = database.logout(user) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case RATE_POST:{
-                    description = database.ratePost(user, Integer.parseInt(token[2]), Integer.parseInt(token[3])) ? Communication.Success : Communication.Failure;
+                    description = database.ratePost(user, Integer.parseInt(token[2]), Integer.parseInt(token[3])) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case REWIN_POST:{
-                    description = database.rewinPost(user, Integer.parseInt(token[2])) ? Communication.Success : Communication.Failure;
+                    description = database.rewinPost(user, Integer.parseInt(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case SHOW_FEED:{
                     Set<WinsomePost> tmp = database.showFeed(user);
                     if ( tmp == null ){
-                        description = Communication.Failure;
+                        description = Communication.Failure.toString();
                         break;
                     }
-                    description = Communication.Success;
+                    description = Communication.Success.toString();
                     attr = toSimplePost(tmp) + ";";
 
                     break;
@@ -179,7 +179,7 @@ public class ServerMain {
                 }
                 case UNFOLLOW_USER:{
                     // user smette di seguire
-                    description = database.unfollowUser(user, token[2]) ? Communication.Success : Communication.Failure;
+                    description = database.unfollowUser(user, token[2]) ? Communication.Success.toString() : Communication.Failure.toString();
                     // TODO devo mandare la notifica di callback
                     stub.doCallback(token[2], "UNFOLLOW;" + user +";");
                     break;
@@ -187,23 +187,25 @@ public class ServerMain {
                 case VIEW_BLOG:{
                     Set<WinsomePost> tmp = database.viewBlog(user);
                     if ( tmp == null ){
-                        description = Communication.Failure;
+                        description = Communication.Failure.toString();
                         break;
                     }
-                    description = Communication.Success;
+                    description = Communication.Success.toString();
                     attr = toSimplePost(tmp) + ";";
 
                     break;
                 }
                 default:{
-                    description = Communication.Failure;
+                    description = Communication.Failure.toString();
                     if ( DEBUG ) System.out.println("SERVER: Qualcosa è andato storto nel processare la richiesta: " + operation);
                     
                     return description.toString() + "\n" + attr.toString() + "\n";
                 }
             }
+        } catch ( WinsomeException e ){
+            description = e.getMessage();
         } catch ( Exception e ){
-            description = Communication.Failure;
+            description = Communication.Failure.toString();
             e.printStackTrace();
         } finally {
             reply = description + "\n" + attr.toString() + "\n";

@@ -67,13 +67,6 @@ public class WinsomeDB implements Serializable {
         return users.get(username);
     }
 
-    public WinsomePost getPost(int id){
-        if ( id < 0 )
-            return null;
-
-        return posts.get(id);
-    }
-
     public WinsomePost removePost(int id){
         if ( id < 0 )
             return null;
@@ -100,7 +93,8 @@ public class WinsomeDB implements Serializable {
     Qui ci vanno le funzioni del database che chiamerà l'api del server
     */
 
-    public boolean followUser(String user, String toFollow){
+    public boolean followUser(String user, String toFollow)
+    throws WinsomeException {
         // user inizia a seguire toFollow
 
         if ( user == null || toFollow == null )
@@ -121,7 +115,8 @@ public class WinsomeDB implements Serializable {
         return follower.addFollowing(toFollow) && followed.addFollower(user);
     }
     
-    public boolean unfollowUser(String user, String toUnfollow){
+    public boolean unfollowUser(String user, String toUnfollow)
+    throws WinsomeException {
         // user smette di seguire toUnfollow
 
         if ( user == null || toUnfollow == null )
@@ -142,7 +137,8 @@ public class WinsomeDB implements Serializable {
         return followed.removeFollower(user) && follower.removeFollowing(toUnfollow);
     }
 
-    public Set<String> listUsers(String username){
+    public Set<String> listUsers(String username)
+    throws WinsomeException {
         if ( username == null )
             return null;
 
@@ -158,14 +154,16 @@ public class WinsomeDB implements Serializable {
         return usersWithTagInCommon;
     }
 
-    public Set<String> listFollowing(String username){
+    public Set<String> listFollowing(String username)
+    throws WinsomeException {
         if ( username == null )
             return null;
 
         return users.get(username).getFollowing();
     }
 
-    public boolean login(String username, String password){
+    public boolean login(String username, String password)
+    throws WinsomeException {
         if ( username == null || password == null )
             return false;
 
@@ -178,7 +176,8 @@ public class WinsomeDB implements Serializable {
         return toLogin.login(password);
     }
 
-    public boolean logout(String username){
+    public boolean logout(String username)
+    throws WinsomeException {
         if ( username == null )
             return false;
 
@@ -192,7 +191,8 @@ public class WinsomeDB implements Serializable {
     }
 
     // Post pubblicati e rewinnati dall'utente
-    public Set<WinsomePost> viewBlog(String username){
+    public Set<WinsomePost> viewBlog(String username)
+    throws WinsomeException {
         if ( username == null )
             return null;
 
@@ -205,7 +205,8 @@ public class WinsomeDB implements Serializable {
         return blog;
     }
 
-    public boolean createPost(String author, String title, String content){
+    public boolean createPost(String author, String title, String content)
+    throws WinsomeException {
         if ( author == null || title == null || content == null )
             return false;
 
@@ -226,7 +227,8 @@ public class WinsomeDB implements Serializable {
 
     // I post di tutti i miei seguiti più i loro rewin, ovvero
     // il blog di tutti i miei utenti seguiti
-    public Set<WinsomePost> showFeed(String username){
+    public Set<WinsomePost> showFeed(String username)
+    throws WinsomeException {
         if ( username == null )
             return null;
 
@@ -245,7 +247,8 @@ public class WinsomeDB implements Serializable {
         return posts.get(idPost);
     }
 
-    public boolean deletePost(String username, int idPost){
+    public boolean deletePost(String username, int idPost)
+    throws WinsomeException {
         if ( idPost < 0 || username == null )
             return false;
 
@@ -257,14 +260,19 @@ public class WinsomeDB implements Serializable {
             return false;
 
         // Se l'eliminazione va a buon fine
-        if ( author.removePost(toRemove) )
-            if ( removePost(idPost) != null )
-                return true;
+        try{
+            if ( author.removePost(toRemove) )
+                if ( removePost(idPost) != null )
+                    return true;
+        } catch ( WinsomeException e ){
+            throw e;
+        }
 
         return false;
     }
 
-    public boolean rewinPost(String username, int idPost){
+    public boolean rewinPost(String username, int idPost)
+    throws WinsomeException {
         if ( idPost < 0 || username == null )
             return false;
 
@@ -281,7 +289,8 @@ public class WinsomeDB implements Serializable {
         return false;
     }
 
-    public boolean ratePost(String username, int idPost, int vote){
+    public boolean ratePost(String username, int idPost, int vote)
+    throws WinsomeException {
         if ( idPost < 0 || username == null )
             return false;
 
@@ -293,7 +302,8 @@ public class WinsomeDB implements Serializable {
         return false;
     }
 
-    public boolean addComment(String username, int idPost, String comment){
+    public boolean addComment(String username, int idPost, String comment)
+    throws WinsomeException {
         if ( idPost < 0 || username == null || comment == null )
             return false;
 
@@ -305,7 +315,8 @@ public class WinsomeDB implements Serializable {
         return false;
     }
 
-    public List<WinsomeWallet> getWallet(String username){
+    public List<WinsomeWallet> getWallet(String username)
+    throws WinsomeException {
         if ( username == null )
             return null;
 
