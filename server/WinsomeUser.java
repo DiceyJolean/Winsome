@@ -92,6 +92,10 @@ public class WinsomeUser implements Serializable {
         return nickname;
     }
 
+    public boolean isLogged(){
+        return loggedIn;
+    }
+
     /**
      * Effettua il login di un utente
      * 
@@ -210,7 +214,7 @@ public class WinsomeUser implements Serializable {
     public boolean logout()
         throws WinsomeException{
         if ( !loggedIn )
-            throw new WinsomeException("L'utente non era loggato");
+            throw new WinsomeException("L'utente non è loggato");
 
         loggedIn = false;
         return true;

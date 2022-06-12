@@ -95,7 +95,7 @@ public class RewardCalculator implements Runnable{
 
                 // Ottengo la lista di tutti gli utenti
                 // È un riferimento, avrò gestire la concorrenza o sono tranquilla perché è una concurrenthashmap? TODO
-                WinsomeDB dbCopy = database.getCopy();
+                WinsomeDB dbCopy = database.getDBCopy();
                 users = dbCopy.getUsers();
                 Set<String> keySet = users.keySet();
                                 

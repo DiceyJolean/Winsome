@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class WinsomePost {// implements Serializable{
+public class WinsomePost implements Serializable{
 
     private int idPost; // Id del post
     private String title; // Titolo del post
@@ -174,9 +174,13 @@ public class WinsomePost {// implements Serializable{
         }
     }
 
-    public boolean rewinPost(String user){
+    public boolean rewinPost(String user)
+    throws WinsomeException, NullPointerException {
         if ( user == null )
             throw new NullPointerException();
+
+        if ( user.equals(author) )
+            throw new WinsomeException("Non è possibile effettuare il rewin di un proprio post");
 
         rewinners.add(user);
         return true;

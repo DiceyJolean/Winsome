@@ -139,6 +139,7 @@ public class ServerMain {
                     break;
                 }
                 case LIST_FOLLOWING:{
+                    // TODO se non ha following lo gestisce il server
                     attr = Arrays.toString( database.listFollowing(user).toArray() );
                     break;
                 }

@@ -25,7 +25,7 @@ public class WinsomeDB implements Serializable {
     private Map<String, Set<String>> tags;
 
     public WinsomeDB(){
-        this.posts = new ConcurrentHashMap<Integer, WinsomePost>(); // TODO
+        this.posts = new ConcurrentHashMap<Integer, WinsomePost>(); // TODO ha senso che sia concurrent?
         this.users = new ConcurrentHashMap<String, WinsomeUser>(); // Ok per la putIfAbsent visto che la register è una sezione critica
         // Non è concurrent perché soltanto il main del server vi accede
         // In scrittura all'inserimento di un nuovo utente, in lettura alla richiesta di listUsers
@@ -60,14 +60,7 @@ public class WinsomeDB implements Serializable {
         return true;
     }
 
-    public WinsomeUser getUser(String username){
-        if ( username == null )
-            return null;
-
-        return users.get(username);
-    }
-
-    public WinsomePost removePost(int id){
+    private WinsomePost removePost(int id){
         if ( id < 0 )
             return null;
 
@@ -81,6 +74,12 @@ public class WinsomeDB implements Serializable {
         return removed;
     }
 
+    // Restituisce un riferimento ai post pubblicati dall'utente
+    public Set<WinsomePost> getPostPerUser(String user){
+
+        // La get su users è threadsafe e getPosts restituisce una deep copy
+        return users.get(user).getPosts(); 
+    }
 
 
 
@@ -98,56 +97,61 @@ public class WinsomeDB implements Serializable {
         // user inizia a seguire toFollow
 
         if ( user == null || toFollow == null )
-            return false;
-
-        if ( user.equals(toFollow) )
-            // Non è possibile seguire se stessi
-            return false;
+            throw new NullPointerException();
 
         WinsomeUser follower = users.get(user); // Chi segue
         if ( follower == null )
-            return false;
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
+
+        if ( !follower.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
 
         WinsomeUser followed = users.get(toFollow); // Chi viene seguito
         if ( followed == null )
-            return false;
-
-        return follower.addFollowing(toFollow) && followed.addFollower(user);
+            throw new WinsomeException("L'utente che si vuole seguire con è iscritto a Winsome");
+        
+        return followed.addFollower(user) && follower.addFollowing(toFollow);
     }
     
-    public boolean unfollowUser(String user, String toUnfollow)
+    public boolean unfollowUser(String username, String toUnfollow)
     throws WinsomeException {
         // user smette di seguire toUnfollow
 
-        if ( user == null || toUnfollow == null )
-            return false;
+        if ( username == null || toUnfollow == null )
+            throw new NullPointerException();
 
-        if ( user.equals(toUnfollow) )
-            // Non è possibile seguire se stessi
-            return false;
-
-        WinsomeUser follower = users.get(user); // Chi segue
+        WinsomeUser follower = users.get(username); // Chi segue
         if ( follower == null )
-            return false;
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
+
+        if ( !follower.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
 
         WinsomeUser followed = users.get(toUnfollow); // Chi viene seguito
         if ( followed == null )
-            return false;
+            throw new WinsomeException("L'utente che si vuole smettere di seguire non è iscritto a Winsome");
 
-        return followed.removeFollower(user) && follower.removeFollowing(toUnfollow);
+        return followed.removeFollower(username) && follower.removeFollowing(toUnfollow);
     }
 
     public Set<String> listUsers(String username)
     throws WinsomeException {
         if ( username == null )
-            return null;
+            throw new NullPointerException();
+
+        WinsomeUser user = users.get(username);
+        if ( user == null )
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
+
+        if ( !user.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
 
         Set<String> usersWithTagInCommon = new HashSet<String>();
-        Set<String> userTags = users.get(username).getTags();
+        Set<String> userTags = user.getTags(); // Se lancia NullPointerExeption la gestisce il server
         
         for ( String tag : userTags )
             // Per ogni tag aggiungo all'insieme degli utenti con un tag in comune gli utenti presenti nel campo value della struttura dei tags
-            usersWithTagInCommon.addAll(tags.get(tag));
+            usersWithTagInCommon.addAll(tags.get(tag)); // Se lancia NullPointerException la gestisce il server
 
         // Tolgo dall'insieme l'utente che ha fatto la richiesta
         usersWithTagInCommon.remove(username);
@@ -157,23 +161,29 @@ public class WinsomeDB implements Serializable {
     public Set<String> listFollowing(String username)
     throws WinsomeException {
         if ( username == null )
-            return null;
+            throw new NullPointerException();
 
-        return users.get(username).getFollowing();
+        WinsomeUser user = users.get(username);
+        if ( user == null )
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
+
+        if ( !user.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
+        
+        return user.getFollowing();
     }
 
     public boolean login(String username, String password)
     throws WinsomeException {
         if ( username == null || password == null )
-            return false;
+            throw new NullPointerException();
 
-        WinsomeUser toLogin = users.get(username);
-        if ( toLogin == null ){
-            System.err.println("DATABASE: " + username + " non è presente nel database per poter effettuare il login");
-            return false;
-        }
+        WinsomeUser user = users.get(username);
+            if ( user == null )
+                throw new WinsomeException("L'utente non è iscritto a Winsome");
 
-        return toLogin.login(password);
+        user.login(password);
+        return true;
     }
 
     public boolean logout(String username)
@@ -181,23 +191,32 @@ public class WinsomeDB implements Serializable {
         if ( username == null )
             return false;
 
-        WinsomeUser toLogout = users.get(username);
-        if ( toLogout == null ){
-            System.err.println("DATABASE: " + username + " non è registrato a Winsome");
-            return false;
-        }
+        WinsomeUser user = users.get(username);
+        if ( user == null )
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
 
-        return toLogout.logout();
+        if ( !user.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
+        
+        user.logout();
+        return true;
     }
 
     // Post pubblicati e rewinnati dall'utente
     public Set<WinsomePost> viewBlog(String username)
     throws WinsomeException {
         if ( username == null )
-            return null;
+            throw new NullPointerException();
 
-        Set<WinsomePost> blog = getPostPerUser(username);
-        Set<Integer> rewin = getUser(username).getRewin();
+        WinsomeUser user = users.get(username);
+        if ( user == null )
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
+
+        if ( !user.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
+
+        Set<WinsomePost> blog = user.getPosts();
+        Set<Integer> rewin = user.getRewin();
 
         for ( Integer idPost : rewin )
             blog.add(((posts.get(idPost))));
@@ -206,15 +225,22 @@ public class WinsomeDB implements Serializable {
     }
 
     public boolean createPost(String author, String title, String content)
-    throws WinsomeException {
+    throws WinsomeException, IllegalAccessException, NullPointerException {
         if ( author == null || title == null || content == null )
-            return false;
+            throw new NullPointerException();
+
+        WinsomeUser user = users.get(author);
+        if ( user == null )
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
+
+        if ( !user.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
 
         // TODO ma la gestione della concorrenza?
         // Qui o il reward lavora su una copia, o devo sincronizzare
         // Per ora sincronizzo
-        WinsomePost post = new WinsomePost(newPost.incrementAndGet(), title, author, content);
-        WinsomeUser user = users.get(author);
+        WinsomePost post = new WinsomePost(newPost.incrementAndGet(), title, author, content); // solleva IllegalArgument e NullPointer
+        
         // Qui inizia la race condition con il reward calculator
         synchronized(user){
             user.addPost(post);
@@ -230,38 +256,62 @@ public class WinsomeDB implements Serializable {
     public Set<WinsomePost> showFeed(String username)
     throws WinsomeException {
         if ( username == null )
-            return null;
+            throw new NullPointerException();
+
+        WinsomeUser user = users.get(username);
+        if ( user == null )
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
+
+        if ( !user.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
 
         Set<WinsomePost> feed = new HashSet<WinsomePost>();
-        Set<String> following = users.get(username).getFollowing();
-        for ( String user : following )
-            feed.addAll(viewBlog(user));
+        Set<String> following = user.getFollowing();
+
+        for ( String followed : following )
+            feed.addAll(viewBlog(followed));
 
         return feed;
     }
 
-    public WinsomePost showPost(int idPost){
+    public WinsomePost showPost(int idPost)
+    throws WinsomeException, IllegalArgumentException {
         if ( idPost < 0 )
-            return null;
+            throw new IllegalArgumentException();
 
-        return posts.get(idPost);
+        WinsomePost post = posts.get(idPost);
+        if ( post == null )
+            throw new WinsomeException("Il post non è presente in Winsome");
+        
+        return post;
     }
 
     public boolean deletePost(String username, int idPost)
-    throws WinsomeException {
-        if ( idPost < 0 || username == null )
-            return false;
+    throws WinsomeException, IllegalArgumentException, NullPointerException {
+        if ( idPost < 0 )
+            throw new IllegalArgumentException();
 
-        WinsomePost toRemove = posts.get(idPost);
-        WinsomeUser author = users.get(toRemove.getAuthor());
+        if ( username == null )
+            throw new NullPointerException();
+
+        WinsomeUser user = users.get(username);
+        if ( user == null )
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
+
+        if ( !user.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
+
+        WinsomePost post = posts.get(idPost);
+        if ( post == null )
+            throw new WinsomeException("Il post non è presente in Winsome");
 
         // Se l'utente che ha richiesto la delete non è l'autore del post
-        if ( author == null || !toRemove.getAuthor().equals(username) || !author.equals(users.get(username)) )
-            return false;
+        if ( !post.getAuthor().equals(username) )
+            throw new WinsomeException("L'utente non è l'autore del post");
 
-        // Se l'eliminazione va a buon fine
         try{
-            if ( author.removePost(toRemove) )
+            // Se l'eliminazione va a buon fine
+            if ( user.removePost(post) )
                 if ( removePost(idPost) != null )
                     return true;
         } catch ( WinsomeException e ){
@@ -272,55 +322,100 @@ public class WinsomeDB implements Serializable {
     }
 
     public boolean rewinPost(String username, int idPost)
-    throws WinsomeException {
-        if ( idPost < 0 || username == null )
-            return false;
+    throws WinsomeException, IllegalArgumentException, NullPointerException {        
+        if ( idPost < 0 )
+            throw new IllegalArgumentException();
 
-        // Non posso fare il rewin di un mio post
-        if ( posts.get(idPost).getAuthor().equals(username) )
-            return false;
+        if ( username == null )
+            throw new NullPointerException();
+
+        WinsomeUser user = users.get(username);
+        if ( user == null )
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
+
+        if ( !user.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
+
+        WinsomePost post = posts.get(idPost);
+        if ( post == null )
+            throw new WinsomeException("Il post non è presente in Winsome");
         
         // Posso fare il rewind di un post solo se è nel mio feed
-        if ( showFeed(username).contains(posts.get(idPost)) )
-            if ( users.get(username).addRewin(idPost) )
-                if ( posts.get(idPost).rewinPost(username) )
+        if ( showFeed(username).contains(post) )
+            if ( post.rewinPost(username) ) // Restituisce true o solleva un'eccezione
+                if ( user.addRewin(idPost) ) // Restituisce true o solleva un'eccezione
                     return true;
-
-        return false;
+        
+        throw new WinsomeException("Non è possibile effettuare il rewin di un post che non è nel proprio feed");
     }
 
     public boolean ratePost(String username, int idPost, int vote)
-    throws WinsomeException {
-        if ( idPost < 0 || username == null )
-            return false;
+    throws WinsomeException, IllegalArgumentException, NullPointerException {
+        if ( idPost < 0 )
+            throw new IllegalArgumentException();
 
-        // Posso fare il rate di un post solo se è nel mio feed
-        if ( showFeed(username).contains(posts.get(idPost)) )
-            if ( posts.get(idPost).addVote(username, vote) )
+        if ( username == null )
+            throw new NullPointerException();
+
+        WinsomeUser user = users.get(username);
+        if ( user == null )
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
+
+        if ( !user.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
+
+        WinsomePost post = posts.get(idPost);
+        if ( post == null )
+            throw new WinsomeException("Il post non è presente in Winsome");
+        
+        // Posso votare un post solo se è nel mio feed
+        if ( showFeed(username).contains(post) )
+            if ( post.addVote(username, vote) )
                 return true;
 
-        return false;
+        throw new WinsomeException("Non è votare un post che non è nel proprio feed");
     }
 
     public boolean addComment(String username, int idPost, String comment)
-    throws WinsomeException {
-        if ( idPost < 0 || username == null || comment == null )
-            return false;
+    throws WinsomeException, IllegalArgumentException, NullPointerException {
+        if ( idPost < 0 )
+            throw new IllegalArgumentException();
 
+        if ( username == null || comment == null )
+            throw new NullPointerException();
+
+        WinsomeUser user = users.get(username);
+        if ( user == null )
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
+
+        if ( !user.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
+
+        WinsomePost post = posts.get(idPost);
+        if ( post == null )
+            throw new WinsomeException("Il post non è presente in Winsome");
+        
         // Posso commentare un post solo se è nel mio feed
-        if ( showFeed(username).contains(posts.get(idPost)) )
-            if ( posts.get(idPost).addComment(username, comment) )
+        if ( showFeed(username).contains(post) )
+            if ( post.addComment(username, comment) ) // Restituisce true o solleva eccezione
                 return true;
         
-        return false;
+        throw new WinsomeException("Non è commentare un post che non è nel proprio feed");
     }
 
     public List<WinsomeWallet> getWallet(String username)
     throws WinsomeException {
         if ( username == null )
-            return null;
+            throw new NullPointerException();
 
-        return users.get(username).getReward();
+        WinsomeUser user = users.get(username);
+        if ( user == null )
+            throw new WinsomeException("L'utente non è iscritto a Winsome");
+
+        if ( !user.isLogged() )
+            throw new WinsomeException("L'utente non ha effettuato il login");
+
+        return user.getReward();
     }
 
 
@@ -341,26 +436,13 @@ public class WinsomeDB implements Serializable {
 
     public boolean updateReward(Map<String, Double> rewardPerUser){
         // la concurrent hashmap accede alla struttura degli utenti, 
-        // per cui se il server contemporaneamente 
+        // per cui se il server contemporaneamente esegue altre istruzioni sugli utenti si possono verificare race condition
 
         for ( WinsomeUser user : users.values() )
             if ( rewardPerUser.get(user.getNickname()) != null )
                 user.updateReward(Calendar.getInstance().getTime(), rewardPerUser.get(user.getNickname()));
 
         return true;
-    }
-
-    public synchronized WinsomeDB getCopy(){
-        // TODO
-
-        return this;
-    }
-
-    // Restituisce un riferimento ai post pubblicati dall'utente
-    public Set<WinsomePost> getPostPerUser(String user){
-
-        // La get su users è threadsafe e getPosts restituisce una deep copy
-        return users.get(user).getPosts(); 
     }
 
     // Restituisce un riferimento agli utenti presenti 

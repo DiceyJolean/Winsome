@@ -1,0 +1,12 @@
+race condition mentre il reward calculator è in esecuzione
+
+aggiunta di un nuovo utente
+aggiunta di un nuovo post
+aggiunta di un nuovo voto
+aggiunta di un nuovo commento
+
+oppure se lavoro su una copia ci sono i seguenti problemi:
+(un utente non può cancellarsi)
+un nuovo utente può iscriversi e non avrebbe il portafoglio aggiornato (in realtà non causa problemi)
+come aggiorno il portafoglio? basterebbe chiamare un metodo di user, ma user è una copia...
+come faccio lo switch di voti e commenti da nuovi a vecchi? basterebbe chiamare un metodo di post, ma post è una copia...
