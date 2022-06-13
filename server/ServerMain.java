@@ -99,19 +99,23 @@ public class ServerMain {
         try{
             switch ( operation ){
                 case ADD_COMMENT:{
+                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
                     description = database.addComment(user, Integer.parseInt(token[2]), token[3]) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case CREATE_POST:{
-                    database.createPost(user, token[2], token[3]);
+                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
+                    description = database.createPost(user, token[2], token[3]) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case DELETE_POST:{
+                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
                     description = database.deletePost(user, Integer.parseInt(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case FOLLOW_USER:{
                     // user inizia a seguire
+                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
                     description = database.followUser(user, token[2]) ? Communication.Success.toString() : Communication.Failure.toString();
                     // notifico all'utente che viene seguito che user ha iniziato a seguirlo
                     stub.doCallback(token[2], "FOLLOW;" + user +";");
@@ -120,6 +124,10 @@ public class ServerMain {
                 case GET_WALLET:{
                     attr = "";
                     List<WinsomeWallet> list = database.getWallet(user);
+                    if ( list == null ){
+                        description = Communication.EmptySet.toString();
+                        break;
+                    }
                     for ( WinsomeWallet w : list )
                         attr = attr + w.getKey() + " " + w.getValue() + "\n";
 
@@ -129,6 +137,10 @@ public class ServerMain {
                 }
                 case GET_WALLET_BITCOIN:{
                     List<WinsomeWallet> list = database.getWallet(user);
+                    if ( list == null ){
+                        description = Communication.EmptySet.toString();
+                        break;
+                    }
                     double n = getRandom();
                     attr = "";
                     for ( WinsomeWallet w : list )
@@ -139,34 +151,47 @@ public class ServerMain {
                     break;
                 }
                 case LIST_FOLLOWING:{
-                    // TODO se non ha following lo gestisce il server
-                    attr = Arrays.toString( database.listFollowing(user).toArray() );
+                    Set<String> following = database.listFollowing(user);
+                    if ( following == null ){
+                        description = Communication.EmptySet.toString();
+                        break;
+                    }
+                    attr = Arrays.toString( following.toArray() );
                     break;
                 }
                 case LIST_USERS:{
-                    attr = Arrays.toString(database.listUsers(user).toArray());
+                    Set<String> users = database.listUsers(user);
+                    if ( users == null ){
+                        description = Communication.EmptySet.toString();
+                        break;
+                    }
+                    attr = Arrays.toString( users.toArray());
                     break;
                 }
                 case LOGIN:{
+                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
                     description = database.login(user, new String(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case LOGOUT:{
+                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
                     description = database.logout(user) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case RATE_POST:{
+                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
                     description = database.ratePost(user, Integer.parseInt(token[2]), Integer.parseInt(token[3])) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case REWIN_POST:{
+                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
                     description = database.rewinPost(user, Integer.parseInt(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case SHOW_FEED:{
                     Set<WinsomePost> tmp = database.showFeed(user);
                     if ( tmp == null ){
-                        description = Communication.Failure.toString();
+                        description = Communication.EmptySet.toString();
                         break;
                     }
                     description = Communication.Success.toString();
@@ -176,19 +201,20 @@ public class ServerMain {
                 }
                 case SHOW_POST:{
                     attr = database.showPost(Integer.parseInt(token[2])).toPrint() + "\n;";
+                    description = Communication.Success.toString();
                     break;
                 }
                 case UNFOLLOW_USER:{
                     // user smette di seguire
+                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
                     description = database.unfollowUser(user, token[2]) ? Communication.Success.toString() : Communication.Failure.toString();
-                    // TODO devo mandare la notifica di callback
                     stub.doCallback(token[2], "UNFOLLOW;" + user +";");
                     break;
                 }
                 case VIEW_BLOG:{
                     Set<WinsomePost> tmp = database.viewBlog(user);
                     if ( tmp == null ){
-                        description = Communication.Failure.toString();
+                        description = Communication.EmptySet.toString();
                         break;
                     }
                     description = Communication.Success.toString();
@@ -197,7 +223,7 @@ public class ServerMain {
                     break;
                 }
                 default:{
-                    description = Communication.Failure.toString();
+                    description = Communication.OperationNotSupported.toString();
                     if ( DEBUG ) System.out.println("SERVER: Qualcosa è andato storto nel processare la richiesta: " + operation);
                     
                     return description.toString() + "\n" + attr.toString() + "\n";
@@ -205,7 +231,10 @@ public class ServerMain {
             }
         } catch ( WinsomeException e ){
             description = e.getMessage();
-        } catch ( Exception e ){
+        } catch ( NullPointerException | IllegalArgumentException e ){
+            description = Communication.Failure.toString();
+        }
+        catch ( Exception e ){
             description = Communication.Failure.toString();
             e.printStackTrace();
         } finally {

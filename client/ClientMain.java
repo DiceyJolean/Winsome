@@ -59,8 +59,8 @@ public class ClientMain {
         }
 
         String multicastAddress = null;
-        int multicastPort = 0;
-        int tcpPort = 0;
+        int multicastPort = 0, tcpPort = 0, connectionAttempt = 0;
+        long retryTime = 0;
 
         // Lettura dei parametri iniziali
         try (
@@ -96,6 +96,18 @@ public class ClientMain {
                         rmiServiceName = new String(token[1]);
                         break;
                     }
+                    case "CONNECTION_ATTEMPT":{
+                        connectionAttempt = Integer.parseInt(token[1]);
+                        if ( connectionAttempt < 1 )
+                            System.exit(1);
+                        break;
+                    }
+                    case "RETRY_TIME":{
+                        retryTime = Long.parseLong(token[1]);
+                        if ( retryTime < 1 )
+                            System.exit(1);
+                        break;
+                    }
                     default:{
                         break;
                     }
@@ -106,26 +118,31 @@ public class ClientMain {
             e.getMessage();
             System.exit(1);
         }
-        if ( DEBUG ){
-            System.out.println("CLIENT: Provo a  connettermi sulla porta " + tcpPort + "\n");
-        }
 
         // Apertura della connessione TCP con il server
         InetAddress address = null;
         try{
             address = InetAddress.getLocalHost();
-            while ( socket == null ){
+            for ( int i = 0; i < connectionAttempt; i++ ){
+                if ( socket != null )
+                    break;
                 try{
+                    if ( DEBUG ) System.out.println("Provo a  connettermi sulla porta " + tcpPort + "\n");
                     socket = new Socket(address, tcpPort);
-                } catch ( ConnectException e ){
-                    // TODO 
                     try{
-                    Thread.sleep(10000);
-                    } catch ( InterruptedException ex ){
+                        Thread.sleep(retryTime);
+                    } catch ( InterruptedException e ){
                         e.printStackTrace();
                         System.exit(1);
                     }
+                } catch ( ConnectException e ){
+                    e.printStackTrace();
+                    System.exit(1);
                 }
+            }
+            if ( socket == null ){
+                System.err.println("Connessione con il server non stabilita, terminazione");
+                System.exit(1);
             }
             out = new PrintWriter(socket.getOutputStream(), true); // Flush automatico
             in = new BufferedReader( new InputStreamReader( socket.getInputStream() ));            
