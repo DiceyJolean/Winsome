@@ -145,7 +145,7 @@ public class WinsomePost implements Serializable{
         // Controllo che l'utente non abbia già aggiunto un voto prima dell'ultima iterazione del reward
         synchronized (this) {
         if ( this.oldVotes.get(user) == null )
-            if ( this.newVotes.putIfAbsent(user, vote) != null )
+            if ( this.newVotes.putIfAbsent(user, vote) == null )
                 return true;
         }
 

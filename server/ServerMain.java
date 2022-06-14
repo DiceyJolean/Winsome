@@ -124,7 +124,7 @@ public class ServerMain {
                 case GET_WALLET:{
                     attr = "";
                     List<WinsomeWallet> list = database.getWallet(user);
-                    if ( list == null ){
+                    if ( list == null || list.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
                     }
@@ -137,7 +137,7 @@ public class ServerMain {
                 }
                 case GET_WALLET_BITCOIN:{
                     List<WinsomeWallet> list = database.getWallet(user);
-                    if ( list == null ){
+                    if ( list == null || list.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
                     }
@@ -152,7 +152,7 @@ public class ServerMain {
                 }
                 case LIST_FOLLOWING:{
                     Set<String> following = database.listFollowing(user);
-                    if ( following == null ){
+                    if ( following == null || following.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
                     }
@@ -161,7 +161,7 @@ public class ServerMain {
                 }
                 case LIST_USERS:{
                     Set<String> users = database.listUsers(user);
-                    if ( users == null ){
+                    if ( users == null || users.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
                     }
@@ -189,8 +189,8 @@ public class ServerMain {
                     break;
                 }
                 case SHOW_FEED:{
-                    Set<WinsomePost> tmp = database.showFeed(user);
-                    if ( tmp == null ){
+                    Set<WinsomePost> tmp = database.showFeed(user, true);
+                    if ( tmp == null || tmp.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
                     }
@@ -212,8 +212,8 @@ public class ServerMain {
                     break;
                 }
                 case VIEW_BLOG:{
-                    Set<WinsomePost> tmp = database.viewBlog(user);
-                    if ( tmp == null ){
+                    Set<WinsomePost> tmp = database.viewBlog(user, true);
+                    if ( tmp == null || tmp.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
                     }
@@ -230,11 +230,14 @@ public class ServerMain {
                 }
             }
         } catch ( WinsomeException e ){
+            attr = "";
             description = e.getMessage();
         } catch ( NullPointerException | IllegalArgumentException e ){
+            attr = "";
             description = Communication.Failure.toString();
         }
         catch ( Exception e ){
+            attr = "";
             description = Communication.Failure.toString();
             e.printStackTrace();
         } finally {
@@ -507,7 +510,7 @@ public class ServerMain {
                         ByteBuffer buffer = ByteBuffer.wrap(reply.getBytes());
                         int byteWrote = client.write(buffer);
 
-                        if ( byteWrote == reply.toString().length() ){
+                        if ( byteWrote == reply.getBytes().length ){
                             // Ho scritto tutto
                             if ( DEBUG ) System.out.println("SERVER: Ho inviato la risposta al client\n");
                             key.attach(null); // Resetto l'attchament, altrimenti ritrovo la reply in allegato quando vado a leggere la prossima richiesta di questo client

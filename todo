@@ -1,0 +1,3 @@
+[DONE] sistemare quando list following, list users e wallet restituiscono un campo vuoto
+concorrenza nelle race condition, vedi file
+[DONE] rate restituisce failure anche se va a buon fine

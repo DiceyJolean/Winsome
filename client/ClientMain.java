@@ -45,7 +45,7 @@ public class ClientMain {
     private static boolean logged = false;
     private static BufferedReader in = null;
     private static PrintWriter out = null;
-    private static Set<String> followers = null;
+    private static Set<String> followers = null; // TODO folowers va sincronizzata tra clabback e
     private static RMIServiceInterface serviceRMI = null;
     private static RewardUpdater rewardUpdater = null;
     private static ClientNotify stub = null;
@@ -123,27 +123,34 @@ public class ClientMain {
         InetAddress address = null;
         try{
             address = InetAddress.getLocalHost();
-            for ( int i = 0; i < connectionAttempt; i++ ){
+            int i = 0;
+            while ( socket == null ){
                 if ( socket != null )
                     break;
                 try{
                     if ( DEBUG ) System.out.println("Provo a  connettermi sulla porta " + tcpPort + "\n");
                     socket = new Socket(address, tcpPort);
+                } catch ( ConnectException e ){
+                    if ( i < connectionAttempt )
+                        i++;
+                    else {
+                        System.err.println("Connessione con il server non stabilita, terminazione");
+                        System.exit(1);
+                    }
+                }
                     try{
                         Thread.sleep(retryTime);
                     } catch ( InterruptedException e ){
                         e.printStackTrace();
                         System.exit(1);
                     }
-                } catch ( ConnectException e ){
-                    e.printStackTrace();
-                    System.exit(1);
-                }
+                
             }
             if ( socket == null ){
                 System.err.println("Connessione con il server non stabilita, terminazione");
                 System.exit(1);
             }
+            System.err.println("Connessione con il server stabilita con successo");
             out = new PrintWriter(socket.getOutputStream(), true); // Flush automatico
             in = new BufferedReader( new InputStreamReader( socket.getInputStream() ));            
         } catch ( Exception e ){
@@ -608,7 +615,12 @@ public class ClientMain {
     }
 
     public static boolean listFollowers(){
-        System.out.println(followers.toString());
+        synchronized ( followers ){
+            if ( followers == null || followers.isEmpty() )
+                System.out.println("L'utente non ha follower");
+            else
+                System.out.println(followers.toString());
+        }
 
         return true;
     }
@@ -764,6 +776,7 @@ public class ClientMain {
 
         } catch ( IOException e ){
             // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
+            // TODO gestire anche altre eccezioni, come il caso NullPointerException: se il server crasha durante la risposta reply è null
             // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
             if ( DEBUG ) e.printStackTrace();
             else e.getMessage();

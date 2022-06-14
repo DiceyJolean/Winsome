@@ -1,209 +1,126 @@
 {
   "bene": {
     "nickname": "bene",
-    "psw": "$2a$10$NYC2NnzLVaV7/Cyl2dKW9u2G8XrHFMLNM7Iz2CXsbglU0pmH.S0f2",
+    "psw": "$2a$10$PBGW.yHxr3rlaGVbQcPpAeeInVGjJ8sCsvfDF961edtXkgX44zZ/S",
     "follower": [
-      "chiara",
       "erica"
     ],
     "following": [
-      "erica"
+      "chiara",
+      "anna"
     ],
     "loggedIn": false,
     "tags": [
-      "a"
+      "gatto"
     ],
     "postRewinned": [
       1
     ],
-    "blog": [
-      {
-        "idPost": 1,
-        "title": "unpost",
-        "author": "bene",
-        "content": "post di bene",
-        "newVotes": {},
-        "oldVotes": {
-          "erica": "LIKE",
-          "chiara": "UNLIKE"
-        },
-        "newComments": {},
-        "oldComments": {
-          "erica": [
-            "vediamo che succede",
-            "un commento!",
-            "evviva!"
-          ]
-        },
-        "rewinners": [
-          "erica"
-        ],
-        "nIterations": 6
-      }
-    ],
+    "blog": [],
     "wallet": [
       {
-        "date": "Jun 6, 2022, 11:43:25 AM",
-        "value": 1.4268408695139467
-      },
-      {
-        "date": "Jun 6, 2022, 3:42:42 PM",
-        "value": 2.0178876694422874
-      },
-      {
-        "date": "Jun 7, 2022, 10:54:55 AM",
-        "value": 2.0549306111592855
-      },
-      {
-        "date": "Jun 8, 2022, 10:42:24 AM",
-        "value": 2.0549306111592855
-      },
-      {
-        "date": "Jun 8, 2022, 11:22:40 AM",
-        "value": 2.0549306111592855
-      },
-      {
-        "date": "Jun 8, 2022, 11:38:55 AM",
-        "value": 2.147350236611105
+        "date": "Jun 14, 2022, 10:22:38 AM",
+        "value": 0.013862942784903076
       }
     ]
   },
   "chiara": {
     "nickname": "chiara",
-    "psw": "$2a$10$BmffNLRK2L4Q1nNsL5MkluTIcluArn3bAav.RgVrHIcXIks6O.5mS",
+    "psw": "$2a$10$8tWorf5TIy3vkmWXZQcDLOP7vGT9qIaXbe3H2liyyIDZbh1kIXwaC",
     "follower": [
-      "erica"
+      "erica",
+      "bene"
     ],
     "following": [
-      "bene",
       "erica"
     ],
     "loggedIn": false,
     "tags": [
-      "due",
-      "uno"
-    ],
-    "postRewinned": [],
-    "blog": [],
-    "wallet": [
-      {
-        "date": "Jun 6, 2022, 11:44:36 AM",
-        "value": 0.17917593624308684
-      },
-      {
-        "date": "Jun 7, 2022, 10:54:55 AM",
-        "value": 0.5493061115928572
-      },
-      {
-        "date": "Jun 8, 2022, 10:42:24 AM",
-        "value": 0.5493061115928572
-      }
-    ]
-  },
-  "erica": {
-    "nickname": "erica",
-    "psw": "$2a$10$l3eSlDKhplElAUTz2lzMyu0tvJhsn.z54mNjHq2.NJ4ct0dGSizKy",
-    "follower": [
-      "chiara",
-      "bene"
-    ],
-    "following": [
-      "chiara",
-      "bene"
-    ],
-    "loggedIn": false,
-    "tags": [
-      "a",
-      "due",
-      "tre",
-      "uno",
-      "tag"
+      "sole",
+      "gatto",
+      "luna"
     ],
     "postRewinned": [
       1
     ],
-    "blog": [
-      {
-        "idPost": 3,
-        "title": "aaa",
-        "author": "erica",
-        "content": "adjkfjakl",
-        "newVotes": {},
-        "oldVotes": {
-          "bene": "LIKE",
-          "chiara": "LIKE"
-        },
-        "newComments": {},
-        "oldComments": {
-          "chiara": [
-            "un commento"
-          ]
-        },
-        "rewinners": [],
-        "nIterations": 5
-      },
-      {
-        "idPost": 4,
-        "title": "quattro",
-        "author": "erica",
-        "content": "djkfajdddd",
-        "newVotes": {},
-        "oldVotes": {},
-        "newComments": {},
-        "oldComments": {},
-        "rewinners": [],
-        "nIterations": 5
-      },
-      {
-        "idPost": 1,
-        "title": "unpost",
-        "author": "bene",
-        "content": "post di bene",
-        "newVotes": {},
-        "oldVotes": {
-          "erica": "LIKE",
-          "chiara": "UNLIKE"
-        },
-        "newComments": {},
-        "oldComments": {
-          "erica": [
-            "mmmh"
-          ]
-        },
-        "rewinners": [
-          "erica"
-        ],
-        "nIterations": 5
-      }
-    ],
+    "blog": [],
     "wallet": [
       {
-        "date": "Jun 6, 2022, 11:44:46 AM",
-        "value": 1.9879253494527958
-      },
-      {
-        "date": "Jun 7, 2022, 10:54:55 AM",
-        "value": 2.4394449220154835
-      },
-      {
-        "date": "Jun 8, 2022, 10:42:24 AM",
-        "value": 2.4394449220154835
+        "date": "Jun 14, 2022, 10:21:38 AM",
+        "value": 0.015403269761003419
       }
     ]
   },
   "anna": {
     "nickname": "anna",
-    "psw": "$2a$10$DxTfLgQctHguo/E/Ne1wnOpjetaCe57aPztRhgcEvyr1ftRMo37nS",
-    "follower": [],
+    "psw": "$2a$10$VLTNtmNdL1hx2k41a6vBceMCEHvksnjAf4Y5tpSqsw5065pD3sqAO",
+    "follower": [
+      "bene"
+    ],
     "following": [],
     "loggedIn": false,
     "tags": [
-      "a",
-      "un",
-      "tag"
+      "luna"
     ],
     "postRewinned": [],
     "blog": [],
     "wallet": []
+  },
+  "erica": {
+    "nickname": "erica",
+    "psw": "$2a$10$Dcbj3QSFa9XmZ.d3B9/h9ueH7VFCcw2SHimWoECGYTEhxY0m0Y7ym",
+    "follower": [
+      "chiara"
+    ],
+    "following": [
+      "chiara",
+      "bene"
+    ],
+    "loggedIn": false,
+    "tags": [
+      "sole",
+      "comune",
+      "in",
+      "un",
+      "tag"
+    ],
+    "postRewinned": [],
+    "blog": [
+      {
+        "idPost": 1,
+        "title": "gatto",
+        "author": "erica",
+        "content": "china è il mi gatto",
+        "newVotes": {},
+        "oldVotes": {
+          "chiara": "LIKE",
+          "bene": "LIKE"
+        },
+        "newComments": {},
+        "oldComments": {
+          "chiara": [
+            "wooo"
+          ],
+          "bene": [
+            "che bel post da bene"
+          ]
+        },
+        "rewinners": [
+          "chiara",
+          "bene"
+        ],
+        "nIterations": 69
+      }
+    ],
+    "wallet": [
+      {
+        "date": "Jun 14, 2022, 10:21:38 AM",
+        "value": 0.06161308363454606
+      },
+      {
+        "date": "Jun 14, 2022, 10:22:38 AM",
+        "value": 0.1170648589056375
+      }
+    ]
   }
 }

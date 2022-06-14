@@ -108,7 +108,7 @@ public class WinsomeDB implements Serializable {
 
         WinsomeUser followed = users.get(toFollow); // Chi viene seguito
         if ( followed == null )
-            throw new WinsomeException("L'utente che si vuole seguire con è iscritto a Winsome");
+            throw new WinsomeException("L'utente che si vuole seguire non è iscritto a Winsome");
         
         return followed.addFollower(user) && follower.addFollowing(toFollow);
     }
@@ -203,7 +203,7 @@ public class WinsomeDB implements Serializable {
     }
 
     // Post pubblicati e rewinnati dall'utente
-    public Set<WinsomePost> viewBlog(String username)
+    public Set<WinsomePost> viewBlog(String username, boolean checkLogin)
     throws WinsomeException {
         if ( username == null )
             throw new NullPointerException();
@@ -212,10 +212,11 @@ public class WinsomeDB implements Serializable {
         if ( user == null )
             throw new WinsomeException("L'utente non è iscritto a Winsome");
 
-        if ( !user.isLogged() )
-            throw new WinsomeException("L'utente non ha effettuato il login");
+        if ( checkLogin )
+            if ( !user.isLogged() )
+                throw new WinsomeException("L'utente non ha effettuato il login");
 
-        Set<WinsomePost> blog = user.getPosts();
+        Set<WinsomePost> blog = new HashSet<>(user.getPosts());
         Set<Integer> rewin = user.getRewin();
 
         for ( Integer idPost : rewin )
@@ -253,7 +254,7 @@ public class WinsomeDB implements Serializable {
 
     // I post di tutti i miei seguiti più i loro rewin, ovvero
     // il blog di tutti i miei utenti seguiti
-    public Set<WinsomePost> showFeed(String username)
+    public Set<WinsomePost> showFeed(String username, boolean checkLogin)
     throws WinsomeException {
         if ( username == null )
             throw new NullPointerException();
@@ -262,14 +263,15 @@ public class WinsomeDB implements Serializable {
         if ( user == null )
             throw new WinsomeException("L'utente non è iscritto a Winsome");
 
-        if ( !user.isLogged() )
-            throw new WinsomeException("L'utente non ha effettuato il login");
+        if ( checkLogin )
+            if ( !user.isLogged() )
+                throw new WinsomeException("L'utente non ha effettuato il login");
 
         Set<WinsomePost> feed = new HashSet<WinsomePost>();
         Set<String> following = user.getFollowing();
 
         for ( String followed : following )
-            feed.addAll(viewBlog(followed));
+            feed.addAll(viewBlog(followed, false));
 
         return feed;
     }
@@ -341,7 +343,7 @@ public class WinsomeDB implements Serializable {
             throw new WinsomeException("Il post non è presente in Winsome");
         
         // Posso fare il rewind di un post solo se è nel mio feed
-        if ( showFeed(username).contains(post) )
+        if ( showFeed(username, false).contains(post) )
             if ( post.rewinPost(username) ) // Restituisce true o solleva un'eccezione
                 if ( user.addRewin(idPost) ) // Restituisce true o solleva un'eccezione
                     return true;
@@ -369,11 +371,11 @@ public class WinsomeDB implements Serializable {
             throw new WinsomeException("Il post non è presente in Winsome");
         
         // Posso votare un post solo se è nel mio feed
-        if ( showFeed(username).contains(post) )
+        if ( showFeed(username, false).contains(post) )
             if ( post.addVote(username, vote) )
                 return true;
 
-        throw new WinsomeException("Non è votare un post che non è nel proprio feed");
+        throw new WinsomeException("Non è possibile votare un post che non è nel proprio feed");
     }
 
     public boolean addComment(String username, int idPost, String comment)
@@ -396,11 +398,11 @@ public class WinsomeDB implements Serializable {
             throw new WinsomeException("Il post non è presente in Winsome");
         
         // Posso commentare un post solo se è nel mio feed
-        if ( showFeed(username).contains(post) )
+        if ( showFeed(username, false).contains(post) )
             if ( post.addComment(username, comment) ) // Restituisce true o solleva eccezione
                 return true;
         
-        throw new WinsomeException("Non è commentare un post che non è nel proprio feed");
+        throw new WinsomeException("Non è possibile commentare un post che non è nel proprio feed");
     }
 
     public List<WinsomeWallet> getWallet(String username)

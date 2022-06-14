@@ -192,7 +192,7 @@ public class WinsomeUser implements Serializable {
         if ( post == null )
             throw new NullPointerException();
 
-        if ( post.getAuthor().equals(nickname) )
+        if ( !post.getAuthor().equals(nickname) )
             throw new WinsomeException("Incostistenza tra autore del post e utente");
 
         blog.add(post);

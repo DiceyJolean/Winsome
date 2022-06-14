@@ -29,11 +29,11 @@ public class ClientNotify extends UnicastRemoteObject implements ClientNotifyInt
     // Sincronizzo perché la registrazione è già avvenuta, potrebbe capitare che un utente inizi a seguirmi mentre inizializzo la struttura dei follower
     public synchronized boolean notify(String notify)
     throws RemoteException{
-        // TODO aggiungere o togliere un utente alla lista dei follower lato client
         if ( notify == null )
             return false;
 
         if ( followers == null )
+            // TODO
             // Se il server può invocare questo metodo, significa che lo stub dell'utente
             // era presente, quindi l'utente è attualmente registrato al servizio di notifica
             // e se questa condizione è verifica c'è stato un errore fatale
@@ -49,13 +49,17 @@ public class ClientNotify extends UnicastRemoteObject implements ClientNotifyInt
         if ( event.equals(FOLLOW)){
             System.out.println("RMIService: Un utente ha iniziato a seguirti");
             System.out.flush();
-            followers.add(follower);
+            synchronized ( followers ){
+                followers.add(follower);
+            }
         }
 
         if ( event.equals(UNFOLLOW)){
             System.out.println("RMIService: Un utente ha smesso di seguirti");
             System.out.flush();
-            followers.remove(follower);
+            synchronized ( followers ){
+                followers.remove(follower);
+            }
         }
 
         return true;
