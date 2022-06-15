@@ -4,11 +4,13 @@ import java.io.Serializable;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Classe che rappresenta il database di Winsome,
@@ -21,15 +23,17 @@ public class WinsomeDB implements Serializable {
     private Map<Integer, WinsomePost> posts;
     private AtomicInteger newPost; // Ha senso che sia atomico se solo il server crea i post, e per giunta uno per volta
     // Qual è il senso di rendere la struttura concurrent se poi utilizzo le lock?
+    private ReadWriteLock lock;
     private Map<String, WinsomeUser> users;
     private Map<String, Set<String>> tags;
 
     public WinsomeDB(){
-        this.posts = new ConcurrentHashMap<Integer, WinsomePost>(); // TODO ha senso che sia concurrent?
-        this.users = new ConcurrentHashMap<String, WinsomeUser>(); // Ok per la putIfAbsent visto che la register è una sezione critica
+        lock = new ReentrantReadWriteLock();
+        posts = new HashMap<Integer, WinsomePost>(); // La concorrenza è gestita con la readwrite lock
+        users = new ConcurrentHashMap<String, WinsomeUser>(); // Ok per la putIfAbsent visto che la register è una sezione critica
         // Non è concurrent perché soltanto il main del server vi accede
         // In scrittura all'inserimento di un nuovo utente, in lettura alla richiesta di listUsers
-        this.tags = new HashMap<String, Set<String>>();
+        tags = new HashMap<String, Set<String>>();
         newPost = new AtomicInteger(0);
     }
 
@@ -37,11 +41,14 @@ public class WinsomeDB implements Serializable {
         if ( user == null )
             return false;
 
+        lock.writeLock().lock();
         if ( users.putIfAbsent(user.getNickname(), user) != null ){
-            if ( DEBUG ) System.out.println("DATABASE: Inserimento di " + user.getNickname() + " fallito, infatti la get restituisce: \n" + users.get(user.getNickname()));
+            lock.writeLock().unlock();
+            if ( DEBUG ) System.out.println("Inserimento di " + user.getNickname() + " fallito, nickname già in uso");
             
             return false;
         }
+        lock.writeLock().unlock();
 
         // Aggiorno la struttura dei tags
         Set<String> userTags = user.getTags();
@@ -56,7 +63,7 @@ public class WinsomeDB implements Serializable {
         }
 
 
-        if ( DEBUG ) System.out.println("DATABASE: Inserimento di " + user.getNickname() + " avvenuto con successo\n");
+        if ( DEBUG ) System.out.println("Inserimento di " + user.getNickname() + " avvenuto con successo\n");
         return true;
     }
 
@@ -64,8 +71,10 @@ public class WinsomeDB implements Serializable {
         if ( id < 0 )
             return null;
 
+        lock.writeLock().lock();
         WinsomePost removed = posts.remove(id);
-        
+        lock.writeLock().unlock();
+
         // Devo rendere consistenti i rewin di questo post
         Set<String> rewinners = removed.getRewinners();
         for ( String rewinner : rewinners )
@@ -75,9 +84,9 @@ public class WinsomeDB implements Serializable {
     }
 
     // Restituisce un riferimento ai post pubblicati dall'utente
-    public Set<WinsomePost> getPostPerUser(String user){
+    protected Set<WinsomePost> getPostPerUser(String user){
 
-        // La get su users è threadsafe e getPosts restituisce una deep copy
+        // TODO qui concorrenza?
         return users.get(user).getPosts(); 
     }
 
@@ -92,7 +101,7 @@ public class WinsomeDB implements Serializable {
     Qui ci vanno le funzioni del database che chiamerà l'api del server
     */
 
-    public boolean followUser(String user, String toFollow)
+    protected boolean followUser(String user, String toFollow)
     throws WinsomeException {
         // user inizia a seguire toFollow
 
@@ -113,7 +122,7 @@ public class WinsomeDB implements Serializable {
         return followed.addFollower(user) && follower.addFollowing(toFollow);
     }
     
-    public boolean unfollowUser(String username, String toUnfollow)
+    protected boolean unfollowUser(String username, String toUnfollow)
     throws WinsomeException {
         // user smette di seguire toUnfollow
 
@@ -134,7 +143,7 @@ public class WinsomeDB implements Serializable {
         return followed.removeFollower(username) && follower.removeFollowing(toUnfollow);
     }
 
-    public Set<String> listUsers(String username)
+    protected Set<String> listUsers(String username)
     throws WinsomeException {
         if ( username == null )
             throw new NullPointerException();
@@ -158,7 +167,7 @@ public class WinsomeDB implements Serializable {
         return usersWithTagInCommon;
     }
 
-    public Set<String> listFollowing(String username)
+    protected Set<String> listFollowing(String username)
     throws WinsomeException {
         if ( username == null )
             throw new NullPointerException();
@@ -173,7 +182,7 @@ public class WinsomeDB implements Serializable {
         return user.getFollowing();
     }
 
-    public boolean login(String username, String password)
+    protected boolean login(String username, String password)
     throws WinsomeException {
         if ( username == null || password == null )
             throw new NullPointerException();
@@ -186,7 +195,7 @@ public class WinsomeDB implements Serializable {
         return true;
     }
 
-    public boolean logout(String username)
+    protected boolean logout(String username)
     throws WinsomeException {
         if ( username == null )
             return false;
@@ -203,7 +212,7 @@ public class WinsomeDB implements Serializable {
     }
 
     // Post pubblicati e rewinnati dall'utente
-    public Set<WinsomePost> viewBlog(String username, boolean checkLogin)
+    protected Set<WinsomePost> viewBlog(String username, boolean checkLogin)
     throws WinsomeException {
         if ( username == null )
             throw new NullPointerException();
@@ -225,7 +234,7 @@ public class WinsomeDB implements Serializable {
         return blog;
     }
 
-    public boolean createPost(String author, String title, String content)
+    protected boolean createPost(String author, String title, String content)
     throws WinsomeException, IllegalAccessException, NullPointerException {
         if ( author == null || title == null || content == null )
             throw new NullPointerException();
@@ -243,9 +252,10 @@ public class WinsomeDB implements Serializable {
         WinsomePost post = new WinsomePost(newPost.incrementAndGet(), title, author, content); // solleva IllegalArgument e NullPointer
         
         // Qui inizia la race condition con il reward calculator
-        synchronized(user){
-            user.addPost(post);
-        }
+        lock.writeLock().lock();
+        user.addPost(post);
+        lock.writeLock().unlock();
+
         // Qui finisce immagino, dipende se il reward lavora su posts, ma mi sembra di no
         posts.put(post.getIdPost(), post);
 
@@ -254,7 +264,7 @@ public class WinsomeDB implements Serializable {
 
     // I post di tutti i miei seguiti più i loro rewin, ovvero
     // il blog di tutti i miei utenti seguiti
-    public Set<WinsomePost> showFeed(String username, boolean checkLogin)
+    protected Set<WinsomePost> showFeed(String username, boolean checkLogin)
     throws WinsomeException {
         if ( username == null )
             throw new NullPointerException();
@@ -276,19 +286,20 @@ public class WinsomeDB implements Serializable {
         return feed;
     }
 
-    public WinsomePost showPost(int idPost)
+    protected String showPost(int idPost)
     throws WinsomeException, IllegalArgumentException {
         if ( idPost < 0 )
             throw new IllegalArgumentException();
 
+        // TODO se modifico nIter mentre lo sto inviando al client?
         WinsomePost post = posts.get(idPost);
         if ( post == null )
             throw new WinsomeException("Il post non è presente in Winsome");
         
-        return post;
+        return post.toPrint(); // Sincronizzata per la sezione critica nIter
     }
 
-    public boolean deletePost(String username, int idPost)
+    protected boolean deletePost(String username, int idPost)
     throws WinsomeException, IllegalArgumentException, NullPointerException {
         if ( idPost < 0 )
             throw new IllegalArgumentException();
@@ -311,6 +322,7 @@ public class WinsomeDB implements Serializable {
         if ( !post.getAuthor().equals(username) )
             throw new WinsomeException("L'utente non è l'autore del post");
 
+        lock.writeLock().lock();
         try{
             // Se l'eliminazione va a buon fine
             if ( user.removePost(post) )
@@ -318,12 +330,14 @@ public class WinsomeDB implements Serializable {
                     return true;
         } catch ( WinsomeException e ){
             throw e;
+        } finally {
+            lock.writeLock().unlock();
         }
 
         return false;
     }
 
-    public boolean rewinPost(String username, int idPost)
+    protected boolean rewinPost(String username, int idPost)
     throws WinsomeException, IllegalArgumentException, NullPointerException {        
         if ( idPost < 0 )
             throw new IllegalArgumentException();
@@ -351,7 +365,7 @@ public class WinsomeDB implements Serializable {
         throw new WinsomeException("Non è possibile effettuare il rewin di un post che non è nel proprio feed");
     }
 
-    public boolean ratePost(String username, int idPost, int vote)
+    protected boolean ratePost(String username, int idPost, int vote)
     throws WinsomeException, IllegalArgumentException, NullPointerException {
         if ( idPost < 0 )
             throw new IllegalArgumentException();
@@ -372,13 +386,13 @@ public class WinsomeDB implements Serializable {
         
         // Posso votare un post solo se è nel mio feed
         if ( showFeed(username, false).contains(post) )
-            if ( post.addVote(username, vote) )
+            if ( post.addRate(username, vote) )
                 return true;
 
         throw new WinsomeException("Non è possibile votare un post che non è nel proprio feed");
     }
 
-    public boolean addComment(String username, int idPost, String comment)
+    protected boolean addComment(String username, int idPost, String comment)
     throws WinsomeException, IllegalArgumentException, NullPointerException {
         if ( idPost < 0 )
             throw new IllegalArgumentException();
@@ -405,7 +419,7 @@ public class WinsomeDB implements Serializable {
         throw new WinsomeException("Non è possibile commentare un post che non è nel proprio feed");
     }
 
-    public List<WinsomeWallet> getWallet(String username)
+    protected Queue<WinsomeWallet> getWallet(String username)
     throws WinsomeException {
         if ( username == null )
             throw new NullPointerException();
@@ -436,7 +450,7 @@ public class WinsomeDB implements Serializable {
 
 
 
-    public boolean updateReward(Map<String, Double> rewardPerUser){
+    protected boolean updateReward(Map<String, Double> rewardPerUser){
         // la concurrent hashmap accede alla struttura degli utenti, 
         // per cui se il server contemporaneamente esegue altre istruzioni sugli utenti si possono verificare race condition
 
@@ -448,7 +462,7 @@ public class WinsomeDB implements Serializable {
     }
 
     // Restituisce un riferimento agli utenti presenti 
-    public Map<String, WinsomeUser> getUsers(){
+    protected Map<String, WinsomeUser> getUsers(){
         return users;
     }
 
@@ -468,7 +482,7 @@ public class WinsomeDB implements Serializable {
     }
 
     // Per evitare ridondanza nel file database recupero il Database di Winsome soltanto tramite la struttura degli utenti
-    public boolean loadDatabase(Map<String, WinsomeUser> users){
+    protected boolean loadDatabase(Map<String, WinsomeUser> users){
         if ( users == null )
             return false;
 
@@ -488,7 +502,7 @@ public class WinsomeDB implements Serializable {
         return true;
     }
 /*
-    public boolean addFollower(String user, String follower){
+    protected boolean addFollower(String user, String follower){
         try{
             return this.users.get(user).addFollower(follower);
         } catch ( Exception e ){
@@ -497,7 +511,7 @@ public class WinsomeDB implements Serializable {
     }
 */
     // TODO deve restituire una copia
-    public WinsomeDB getDBCopy(){
+    protected WinsomeDB getDBCopy(){
 
         return this;
     }

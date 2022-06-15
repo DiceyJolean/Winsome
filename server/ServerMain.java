@@ -21,7 +21,7 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 
 import shared.*;
@@ -123,30 +123,36 @@ public class ServerMain {
                 }
                 case GET_WALLET:{
                     attr = "";
-                    List<WinsomeWallet> list = database.getWallet(user);
-                    if ( list == null || list.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
+                    double wallet = 0;
+                    Queue<WinsomeWallet> queue = database.getWallet(user);
+                    if ( queue == null || queue.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
                     }
-                    for ( WinsomeWallet w : list )
+                    for ( WinsomeWallet w : queue ){
                         attr = attr + w.getKey() + " " + w.getValue() + "\n";
+                        wallet = wallet + w.getValue();
+                    }
 
-                    attr += ";";
+                    attr += "Valore del portafoglio : " + wallet + "\n;";
 
                     break;
                 }
                 case GET_WALLET_BITCOIN:{
-                    List<WinsomeWallet> list = database.getWallet(user);
-                    if ( list == null || list.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
+                    Queue<WinsomeWallet> queue = database.getWallet(user);
+                    if ( queue == null || queue.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
                     }
                     double n = getRandom();
+                    double walletbtc = 0;
                     attr = "";
-                    for ( WinsomeWallet w : list )
-                        attr = attr + w.getKey() + " " + w.getValue()*n + " (Tasso di conversione: " + n + ")\n";
+                    for ( WinsomeWallet w : queue ){
+                        attr = attr + w.getKey() + " " + w.getValue()*n + ")\n";
+                        walletbtc = walletbtc + w.getValue()*n;
+                    }
 
-                    attr += ";";
+                    attr += "Valore del portafoglio in bitcoin : " + walletbtc + " (Tasso di conversione: " + n + "\n;";
 
                     break;
                 }
@@ -200,7 +206,7 @@ public class ServerMain {
                     break;
                 }
                 case SHOW_POST:{
-                    attr = database.showPost(Integer.parseInt(token[2])).toPrint() + "\n;";
+                    attr = database.showPost(Integer.parseInt(token[2])) + "\n;";
                     description = Communication.Success.toString();
                     break;
                 }

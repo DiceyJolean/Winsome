@@ -5,6 +5,9 @@ aggiunta di un nuovo post
 aggiunta di un nuovo voto
 aggiunta di un nuovo commento
 eliminazione di un post
+vista di un post
+vista del wallet
+vista del wallet in bitcoin
 
 oppure se lavoro su una copia ci sono i seguenti problemi:
 (un utente non può cancellarsi)

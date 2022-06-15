@@ -1,11 +1,11 @@
 package server;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import server.bcrypt.src.BCrypt;
 
@@ -26,7 +26,7 @@ public class WinsomeUser implements Serializable {
     private Set<String> tags; // Insieme dei tag dell'utente
     private Set<Integer> postRewinned; // Insieme segli id dei post rewinnati dall'utente
     private Set<WinsomePost> blog; // Insieme dei post pubblicati da questo utente TODO ridondanza?? Sarà solo un riferimento, giustamente!
-    private List<WinsomeWallet> wallet; // Lista con lo storico degli aggiornamenti del portafoglio dell'utente
+    private Queue<WinsomeWallet> wallet; // Lista con lo storico degli aggiornamenti del portafoglio dell'utente
 
     /**
      * Crea un nuovo utente Winsome con associata password (hashata) e lista di tag (NON modificabile)
@@ -55,7 +55,7 @@ public class WinsomeUser implements Serializable {
         this.follower = new HashSet<String>();
         this.following = new HashSet<String>();
         this.loggedIn = false;
-        this.wallet = new ArrayList<WinsomeWallet>();
+        this.wallet = new ConcurrentLinkedQueue<WinsomeWallet>();
         this.postRewinned = new HashSet<Integer>();
         this.blog = new HashSet<WinsomePost>();
         this.tags = new HashSet<String>();
@@ -225,7 +225,7 @@ public class WinsomeUser implements Serializable {
      * 
      * @return il valore del portafoglio
      */
-    public List<WinsomeWallet> getReward(){
+    public Queue<WinsomeWallet> getReward(){
         return wallet;
     }
 
@@ -245,11 +245,6 @@ public class WinsomeUser implements Serializable {
             
         if ( newReward == 0 )
             return true;
-
-        if ( wallet.size() != 0 ){
-            WinsomeWallet last = wallet.get(wallet.size()-1);
-            newReward = newReward + last.getValue();
-        }
 
         wallet.add(new WinsomeWallet(date, newReward));
         return true;

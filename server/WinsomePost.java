@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class WinsomePost implements Serializable{
+public class WinsomePost implements Serializable {
 
     private int idPost; // Id del post
     private String title; // Titolo del post
@@ -72,7 +72,7 @@ public class WinsomePost implements Serializable{
     }
 
 
-
+    // ho già sincronizzato this all'interno dei metodi addvote addcomment e toprint
     
     public String toPrint(){
         Map<String, Vote> votes = new HashMap<String, Vote>(oldVotes);
@@ -103,6 +103,11 @@ public class WinsomePost implements Serializable{
             commentsPrettyPrinting = commentsPrettyPrinting.substring(0, commentsPrettyPrinting.length()-2);
         commentsPrettyPrinting = commentsPrettyPrinting + "}";
 
+        int nIter;
+        synchronized ( this ){
+            nIter = nIterations;
+        }
+
         return "\n\tID: " + idPost +
             "\n\tTITOLO: " + title +
             "\n\tCONTENUTO: " + content +
@@ -110,14 +115,14 @@ public class WinsomePost implements Serializable{
             "\n\tVOTI: " + votesPrettyPrinting +
             "\n\tCOMMENTI: " + commentsPrettyPrinting +
             "\n\tREWINNERS: " + rewinners.toString() +
-            "\n\tN_ITER: " + nIterations + "\n";
+            "\n\tN_ITER: " + nIter + "\n";
     }
     
     public Set<String> getRewinners(){
         return new HashSet<String>(rewinners);
     }
 
-    public boolean addVote(String user, int value)
+    public synchronized boolean addRate(String user, int value)
     throws WinsomeException, NullPointerException, IllegalArgumentException {
     // throws NullArgumentException, IllegalArgumentException {
         if ( user == null )
@@ -152,7 +157,7 @@ public class WinsomePost implements Serializable{
         throw new WinsomeException("L'utente aveva già votato il post in precedenza");
     }
 
-    public boolean addComment(String user, String comment)
+    public synchronized boolean addComment(String user, String comment)
     throws WinsomeException, NullPointerException {
         if ( comment == null || user == null )
             throw new NullPointerException();
