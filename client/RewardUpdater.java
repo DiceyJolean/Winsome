@@ -26,7 +26,7 @@ public class RewardUpdater implements Runnable{
                 return;
             }
             else
-                System.out.printf("SERVER: L'indirizzo %s è un Multicast Address\n", address);
+                System.out.printf("CLIENT: L'indirizzo %s è un Multicast Address\n", address);
         }
         catch ( UnknownHostException e ){
             System.err.printf("CLIENT: %s", e.getMessage());
