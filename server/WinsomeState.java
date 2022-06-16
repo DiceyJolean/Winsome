@@ -55,10 +55,11 @@ public class WinsomeState implements Runnable {
     public boolean updateWinsomeState(){
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         String json = null;
-        synchronized(db){
-            // Sincronizzo, invece di lavorare su una copia, perché questo metodo probabilmente sarà più veloce che fare la copia
-            json = gson.toJson(db.getUsers());
-        }
+        db.lock.readLock().lock();
+        // Sincronizzo, invece di lavorare su una copia, perché il metodo toJson probabilmente sarà più veloce che fare la copia
+        json = gson.toJson(db.getUsers());
+        // Perché mi servono le lock se users è concurrent? Perché con la get ci accedo in lettura, così come quando faccio modifiche ai singoli user
+        db.lock.readLock().unlock();
         File uptadedDB = new File(filename);
 
         try(

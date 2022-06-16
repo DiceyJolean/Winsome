@@ -37,12 +37,14 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
     }
 
     @Override
+    // TODO Il synch è per clients, ma la getFollower è una sezione critica
     public synchronized Set<String> registerForCallback(ClientNotifyInterface user)
     throws RemoteException {
         clients.add(user);
         if ( DEBUG ) System.out.println("RMIService: Aggiunto nuovo utente \"" + user.getUser() + "\" al servizio di notifica");
 
         try{
+            // TODO followers di user com'è sincronizzata? getFoll restituisce una copia, e nel frattempo è sincronizzata
             Set<String> followers = db.getUsers().get(user.getUser()).getFollower();
             return followers;
         } catch ( Exception e ){
@@ -52,6 +54,7 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
     }
 
     @Override
+    // TODO Il synch è per clients, ma la getFollower è una sezione critica
     public synchronized boolean unregisterForCallback(ClientNotifyInterface user)
     throws RemoteException {
 
@@ -59,7 +62,7 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
         return clients.remove(user);
     }
 
-    // La callback la chiama il server, che è in multiplexing, quindi non è una sezione critica
+    // La doCallback la chiama il server, che è in multiplexing, quindi non è una sezione critica
     public boolean doCallback(String user, String notify)
     throws RemoteException {
         // Cerco lo stub dell'utente che dovrà ricevere la notifica

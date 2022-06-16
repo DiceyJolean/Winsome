@@ -122,7 +122,7 @@ public class WinsomePost implements Serializable {
         return new HashSet<String>(rewinners);
     }
 
-    public synchronized boolean addRate(String user, int value)
+    public boolean addRate(String user, int value)
     throws WinsomeException, NullPointerException, IllegalArgumentException {
     // throws NullArgumentException, IllegalArgumentException {
         if ( user == null )
@@ -148,7 +148,7 @@ public class WinsomePost implements Serializable {
         }
         
         // Controllo che l'utente non abbia già aggiunto un voto prima dell'ultima iterazione del reward
-        synchronized (this) {
+        synchronized (this) { // TODO non ha accesso al database per fare la lock
         if ( this.oldVotes.get(user) == null )
             if ( this.newVotes.putIfAbsent(user, vote) == null )
                 return true;
@@ -157,7 +157,7 @@ public class WinsomePost implements Serializable {
         throw new WinsomeException("L'utente aveva già votato il post in precedenza");
     }
 
-    public synchronized boolean addComment(String user, String comment)
+    public boolean addComment(String user, String comment)
     throws WinsomeException, NullPointerException {
         if ( comment == null || user == null )
             throw new NullPointerException();

@@ -74,8 +74,6 @@ public class RewardCalculator implements Runnable{
             double rewPost = 0;
             // Struttura che raccoglie i nomi dei curatori per ogni post
             Set<String> curators = new HashSet<String>();
-
-            Map<String, WinsomeUser> users;
             // Raccolta delle ricompense per utente
             Map<String, Double> rewardPerUser = new HashMap<String, Double>();
 
@@ -94,10 +92,8 @@ public class RewardCalculator implements Runnable{
                 rewardPerUser.clear();
 
                 // Ottengo la lista di tutti gli utenti
-                // È un riferimento, avrò gestire la concorrenza o sono tranquilla perché è una concurrenthashmap? TODO
-                WinsomeDB dbCopy = database.getDBCopy();
-                users = dbCopy.getUsers();
-                Set<String> keySet = users.keySet();
+                // Dovrebbe essere threadsafe perché users è concurrent e ci accedo per ottenere una copia degli utenti attualmente iscritti
+                Set<String> keySet = new HashSet<>(database.getUsers().keySet());
                                 
                 for (String user : keySet ){
                     // Per ogni utente calcolo la ricompensa
@@ -122,6 +118,13 @@ public class RewardCalculator implements Runnable{
                     // Lavoro su una copia, non ho necessità di sincronizzare
                     */
 
+                    database.lock.readLock().lock(); try { // Per ogni utente accedo in lettura ai suoi post, evito che vengano rimossi nel frattempo
+                    // TODO io qui modifico post.
+                    // Per il thread del backup è un problema.
+                    // Sto bloccando in lettura, quindi il thread del backup può accedere a post e leggere dati incostistenti
+                    // Bloccare in scrittura mi sembra terribilmente poco efficiente...
+                    // Che altre soluzioni ci sono? Bloccare in scrittura soltanto mentre invoco i metodi che modificano post
+
                     for (WinsomePost post : database.getPostPerUser(user)){
                         // Curatori del post tra i quali dividere la ricompensa
                         curators.clear();
@@ -130,31 +133,43 @@ public class RewardCalculator implements Runnable{
                         // perché li invoca soltanto il calcolatore, quindi non devono essere synch questi metodi,
                         // piuttosto non devono essere aggiunti voti o commenti nel frattempo 
                         
-                        synchronized (post){
+                        synchronized ( post ){
                             /*
-                             * Due parole su questa sincronizzazione...
-                             * 
-                             * I metodi di WinsomePost che modificano l'istanza, quindi rate, comment e rewin, sincronizzano l'istanza.
-                             * Durante il calcolo del reward sincronizzo di nuovo l'istanza del WinsomePost, ma lo faccio utilizzando
-                             * il blocco synchronized non nel metodo ma qui. Perché? Perché così nel frattempo non rischio che vengano
-                             * aggiunti nuovi commenti mentre li ho già contati ad esempio, anche se la struttura rimarrebbe consistente.
-                             */
+                            * Due parole su questa sincronizzazione...
+                            * 
+                            * I metodi di WinsomePost che modificano l'istanza, quindi rate, comment e rewin, sincronizzano l'istanza.
+                            * Durante il calcolo del reward sincronizzo di nuovo l'istanza del WinsomePost, ma lo faccio utilizzando
+                            * il blocco synchronized non nel metodo ma qui. Perché? Perché così nel frattempo non rischio che vengano
+                            * aggiunti nuovi commenti mentre li ho già contati ad esempio, anche se la struttura rimarrebbe consistente.
+                            * Non posso lavorare su una copia del post, altrimenti non posso modificare i suoi campi
+                            */
                         
+                            
                             // I metodi di post che toccano voti e commenti sono synchronized, ma tolgo il synch su quelli che invoco qui
                             int voteSum = post.countVote(curators);
                             // In questo punto lo stesso post potrebbe ricevere alcuni commenti e non mi piace
                             // Sincronizzo durante il calcolo
                             int commentSum = post.countComments(curators);
 
+                            // TODO se qui cambio da lettura a scrittura si presenta la race condition in cui l'autore del post potrebbe rimuoverlo nel frattempo
+                            // Ma il fatto che sia sincronizzato lo impedisce? Sì!!!
+
+                            database.lock.readLock().unlock();
+                            database.lock.writeLock().lock(); try {
+
                             post.increaseIterations(); // Lo faccio adesso per non dividere per 0
+                            post.switchNewOld();
+
+                            } finally { database.lock.writeLock().unlock(); }
+                            database.lock.readLock().lock(); // TODO come devo mettere qui il try-finally?
+                            // Non è necessario riprendere la lock da qui in poi
 
                             rewPost = ( Math.log(voteSum) + Math.log(commentSum) ) / post.getIterations();
                             if ( rewPost < 0 )
                                 rewPost = 0;
                             
-                            post.switchNewOld();
-                        }
-                    
+                        } 
+                        
                         for ( String curator : curators ){
                             // Per ogni curatore del post aggiorno la ricompensa totale
                             if ( rewardPerUser.get(curator) != null ){
@@ -176,6 +191,7 @@ public class RewardCalculator implements Runnable{
                             rewardPerUser.replace(user, null, rewPost * percAuth);
 
                     }
+                    } finally { database.lock.readLock().unlock(); }
                 }
 
                 /*

@@ -36,3 +36,9 @@ lettura per il calcolo dei commenti e voti su ogni post, ma se lavora su una cop
 poi scrittura per l'aggiornamento di post e user, basta ottenere la write lock all'interno dei metodi
 per il backup cosa devo sincronizzare? la struttura degli utenti, la stessa che poi serve al reward...
 
+
+per il backup devo sincronizzare tutto! perché ogni modifica di qualsiasi campo di una qualsiasi struttura è una race condition!
+
+SI TORNA ALL'IDEA DI FARE UNA COPIA DELLA STRUTTURA DEGLI UTENTI PER IL SALVATAGGIO DELLO STATO
+inutile bloccare in scrittura per ogni operazione
+il risparmio non è tanto la copia in sè quanto non bloccare in scrittura (!!!) ogni volta

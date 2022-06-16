@@ -45,7 +45,7 @@ public class ClientMain {
     private static boolean logged = false;
     private static BufferedReader in = null;
     private static PrintWriter out = null;
-    private static Set<String> followers = null; // TODO folowers va sincronizzata tra clabback e
+    private static Set<String> followers = null; // TODO followers va sincronizzata tra callback e server
     private static RMIServiceInterface serviceRMI = null;
     private static RewardUpdater rewardUpdater = null;
     private static ClientNotify stub = null;
@@ -181,7 +181,7 @@ public class ClientMain {
                     case "register":{
                         // Mi aspetto da uno a cinque tag
                         if ( req.length < 3 + MINTAGS || req.length > 3 + MAXTAGS ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
                         String nickname = new String(req[1]);
@@ -203,7 +203,7 @@ public class ClientMain {
                     }
                     case "login":{
                         if ( req.length != 3 ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
                         /*  Il client viene "associato" a un utente al momento del login
@@ -229,6 +229,10 @@ public class ClientMain {
                         break;
                     }
                     case "logout":{
+                        if ( req.length != 1 ){
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
+                            break;
+                        }
                         // Qui si effettuano solo i controlli sui dati in ingresso
                         /*
                         Questa roba spetta alla funzione relatiiva
@@ -249,7 +253,7 @@ public class ClientMain {
                     }
                     case "post":{
                         if ( req.length < 3 ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
 
@@ -263,7 +267,7 @@ public class ClientMain {
                     }
                     case "comment":{
                         if ( req.length < 3 ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
                         try {
@@ -276,13 +280,13 @@ public class ClientMain {
                             break;
 
                         } catch ( NumberFormatException e ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
                     }
                     case "rate":{
                         if ( req.length != 3 ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }    
                         try {
@@ -298,7 +302,7 @@ public class ClientMain {
                                     break;
                                 }
                                 default:{
-                                    helpMessage();
+                                    System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                                     break;
                                 }
                             }
@@ -306,7 +310,7 @@ public class ClientMain {
                             break;
                             
                         } catch ( NumberFormatException e ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
                     }
@@ -322,12 +326,12 @@ public class ClientMain {
                             break;
                         }
                         // Nessuna delle due, vuol dire che la richiesta è stata formulata in modo scorretto
-                        helpMessage();
+                        System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                         break;
                     }
                     case "list":{
                         if ( req.length != 2 ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
                         switch ( req[1] ){
@@ -344,7 +348,7 @@ public class ClientMain {
                                 break;
                             }
                             default:{
-                                helpMessage();
+                                System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                                 break;
                             }
                         }
@@ -352,7 +356,7 @@ public class ClientMain {
                     }
                     case "show":{
                         if ( req.length < 2 ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
                         switch( req[1] ){
@@ -362,7 +366,7 @@ public class ClientMain {
                             }
                             case "post":{
                                 if ( req.length != 3 ){
-                                    helpMessage();
+                                    System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                                     break;
                                 }
                                 try{
@@ -371,20 +375,20 @@ public class ClientMain {
                                     showPost(idPost);
                                     break;
                                 } catch ( NumberFormatException e ){
-                                    helpMessage();
+                                    System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                                     break;
                                 }
                             }
                             default:{
-                                helpMessage();
+                                System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                                 break;
                             }
                         }
                         break;
                     }
                     case "delete":{
-                        if ( req.length < 2 ){
-                            helpMessage();
+                        if ( req.length != 2 ){
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
 
@@ -394,13 +398,13 @@ public class ClientMain {
                             deletePost(idPost);
                             break;
                         } catch ( NumberFormatException e ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
                     }
                     case "rewin":{
-                        if ( req.length < 2 ){
-                            helpMessage();
+                        if ( req.length != 2 ){
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
 
@@ -410,7 +414,7 @@ public class ClientMain {
                             rewinPost(idPost);
                             break;
                         } catch ( NumberFormatException e ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
                     }
@@ -420,7 +424,7 @@ public class ClientMain {
                     }
                     case "follow":{
                         if ( req.length != 2 ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
                         String user = new String(req[1]);
@@ -430,7 +434,7 @@ public class ClientMain {
                     }
                     case "unfollow":{
                         if ( req.length != 2 ){
-                            helpMessage();
+                            System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
                         String user = new String(req[1]);
@@ -439,7 +443,7 @@ public class ClientMain {
                         break;
                     }
                     default:{
-                        helpMessage();
+                        System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                         break;
                     }
                 }

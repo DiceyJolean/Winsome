@@ -136,8 +136,10 @@ public class WinsomeUser implements Serializable {
         if ( nickname.equals(user) )
             // Non è possibile seguire se stessi
             throw new WinsomeException("Non è possibile seguire se stessi");
-            
-        follower.add(user);
+        
+        synchronized ( this ){ // Sincronizzo per la race condition durante la registrazione alla callback
+            follower.add(user);
+        }
         return true;
     }
 
@@ -203,7 +205,10 @@ public class WinsomeUser implements Serializable {
     // TODO questa funzione va sincronizzata in qualche modo perché viene invocata dai client tramite RMI
     public Set<String> getFollower(){
         Set<String> copy = new HashSet<String>();
-        copy.addAll(follower);
+        
+        synchronized ( this ){ // Sincronizzo per la race condition durante la registrazione alla callback
+            copy.addAll(follower);
+        }
 
         return copy;
     }
@@ -265,7 +270,9 @@ public class WinsomeUser implements Serializable {
         if ( nickname.equals(user) )
             throw new WinsomeException("Non è possibile seguire se stessi");
 
-        follower.remove(user);
+        synchronized ( this ){ // Sincronizzo per la race condition durante la registrazione alla callback
+            follower.remove(user);
+        }
         return true;
     }
 

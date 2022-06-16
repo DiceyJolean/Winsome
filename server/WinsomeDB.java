@@ -23,7 +23,7 @@ public class WinsomeDB implements Serializable {
     private Map<Integer, WinsomePost> posts;
     private AtomicInteger newPost; // Ha senso che sia atomico se solo il server crea i post, e per giunta uno per volta
     // Qual è il senso di rendere la struttura concurrent se poi utilizzo le lock?
-    private ReadWriteLock lock;
+    protected ReadWriteLock lock; // Chiunque può creare un database, ma solo chi è nel package server può utilizzare la lock
     private Map<String, WinsomeUser> users;
     private Map<String, Set<String>> tags;
 
@@ -71,9 +71,10 @@ public class WinsomeDB implements Serializable {
         if ( id < 0 )
             return null;
 
-        lock.writeLock().lock();
+        // TODO quando viene chiamato questo modifico la struttura è già bloccata in modalità scrittura
+        // lock.writeLock().lock();
         WinsomePost removed = posts.remove(id);
-        lock.writeLock().unlock();
+        // lock.writeLock().unlock();
 
         // Devo rendere consistenti i rewin di questo post
         Set<String> rewinners = removed.getRewinners();
@@ -85,8 +86,17 @@ public class WinsomeDB implements Serializable {
 
     // Restituisce un riferimento ai post pubblicati dall'utente
     protected Set<WinsomePost> getPostPerUser(String user){
+        /*
+        // TODO qui concorrenza? restituisco una copia dei post
+        lock.readLock().lock();
+        Set<WinsomePost> tmp = new HashSet<WinsomePost>(users.get(user).getPosts());
+        // TODO visto che lavoro su una copia dei post, non è necessario sincronizzare post durante la print, addrate e addcomment
+        // TODO sì, ma così come si fa lo switch tra vecchi e nuovi? come si fa a incrementare niter?
+        lock.readLock().unlock();
+        */
 
-        // TODO qui concorrenza?
+        // TODO qui va bloccata la lettura in qualche modo. Metti che un post viene eliminato nel frattempo
+        // ok, ho messo il metodo readLock e readUnlock che il reward chiamerà prima e dopo aver fatto con postperuser
         return users.get(user).getPosts(); 
     }
 
@@ -119,7 +129,12 @@ public class WinsomeDB implements Serializable {
         if ( followed == null )
             throw new WinsomeException("L'utente che si vuole seguire non è iscritto a Winsome");
         
-        return followed.addFollower(user) && follower.addFollowing(toFollow);
+        lock.writeLock().lock();
+        try {
+            return followed.addFollower(user) && follower.addFollowing(toFollow);
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
     
     protected boolean unfollowUser(String username, String toUnfollow)
@@ -140,7 +155,12 @@ public class WinsomeDB implements Serializable {
         if ( followed == null )
             throw new WinsomeException("L'utente che si vuole smettere di seguire non è iscritto a Winsome");
 
-        return followed.removeFollower(username) && follower.removeFollowing(toUnfollow);
+        lock.writeLock().lock();
+        try{
+            return followed.removeFollower(username) && follower.removeFollowing(toUnfollow);   
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     protected Set<String> listUsers(String username)
@@ -191,8 +211,12 @@ public class WinsomeDB implements Serializable {
             if ( user == null )
                 throw new WinsomeException("L'utente non è iscritto a Winsome");
 
-        user.login(password);
-        return true;
+        lock.writeLock().lock();
+        try{
+            return user.login(password); // Ritorna true o solleva eccezione
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     protected boolean logout(String username)
@@ -207,8 +231,12 @@ public class WinsomeDB implements Serializable {
         if ( !user.isLogged() )
             throw new WinsomeException("L'utente non ha effettuato il login");
         
-        user.logout();
-        return true;
+        lock.writeLock().lock();
+        try{
+            return user.logout(); // Ritorna true o solleva eccezione
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     // Post pubblicati e rewinnati dall'utente
@@ -256,7 +284,7 @@ public class WinsomeDB implements Serializable {
         user.addPost(post);
         lock.writeLock().unlock();
 
-        // Qui finisce immagino, dipende se il reward lavora su posts, ma mi sembra di no
+        // Qui finisce la sincronizzazione immagino, dipende se il reward lavora su posts, ma mi sembra di no
         posts.put(post.getIdPost(), post);
 
         return true;
@@ -412,9 +440,15 @@ public class WinsomeDB implements Serializable {
             throw new WinsomeException("Il post non è presente in Winsome");
         
         // Posso commentare un post solo se è nel mio feed
-        if ( showFeed(username, false).contains(post) )
-            if ( post.addComment(username, comment) ) // Restituisce true o solleva eccezione
-                return true;
+        if ( showFeed(username, false).contains(post) ){
+            lock.writeLock().lock();
+            try{
+                if ( post.addComment(username, comment) ) // Restituisce true o solleva eccezione
+                    return true;
+            } finally {
+                lock.writeLock().unlock();
+            }
+        }
         
         throw new WinsomeException("Non è possibile commentare un post che non è nel proprio feed");
     }
@@ -431,7 +465,13 @@ public class WinsomeDB implements Serializable {
         if ( !user.isLogged() )
             throw new WinsomeException("L'utente non ha effettuato il login");
 
-        return user.getReward();
+        return user.getReward(); // Ok, è una concurrent collection
+
+        /*
+         * Due parole anche qui... TODO
+         * il wallet viene toccato da tutti i thread, reward, server e backup.
+         * Rendendo essa una coda concorrente risolvo? Mi sembra di sì
+         */
     }
 
 
@@ -455,30 +495,19 @@ public class WinsomeDB implements Serializable {
         // per cui se il server contemporaneamente esegue altre istruzioni sugli utenti si possono verificare race condition
 
         for ( WinsomeUser user : users.values() )
-            if ( rewardPerUser.get(user.getNickname()) != null )
+            if ( rewardPerUser.get(user.getNickname()) != null ){
+                lock.writeLock().lock();
                 user.updateReward(Calendar.getInstance().getTime(), rewardPerUser.get(user.getNickname()));
+                lock.writeLock().unlock();
+            }
 
         return true;
     }
 
     // Restituisce un riferimento agli utenti presenti 
+    // TODO ??? questa si lascia così? users è una concurrenthashmpa...
     protected Map<String, WinsomeUser> getUsers(){
         return users;
-    }
-
-    // La utilizza soltanto il metodo per il ripristino del database
-    private boolean addPost(WinsomePost post){
-        if ( post == null )
-            return false;
-
-        if ( posts.putIfAbsent(post.getIdPost(), post) != null ){
-            // if ( DEBUG ) System.out.println("DATABASE: Inserimento del post n. " + post.getIdPost() + " fallito\n");
-
-            return false;
-        }
-
-        // if ( DEBUG ) System.out.println("DATABASE: Inserimento del post n. " + post.getIdPost() + " avvenuto con successo\n");
-        return true;
     }
 
     // Per evitare ridondanza nel file database recupero il Database di Winsome soltanto tramite la struttura degli utenti
@@ -490,7 +519,7 @@ public class WinsomeDB implements Serializable {
         for ( WinsomeUser user : this.users.values() ){
             for ( WinsomePost post : user.getPosts() ){
                 newPost.incrementAndGet();
-                addPost(post);
+                posts.putIfAbsent(post.getIdPost(), post); // Utilizzo putIfAbsent invece che la put per non sovrascrivere, evito modifiche malevole al db
             }
             for ( String tag : user.getTags() ){
                 tags.putIfAbsent(tag, new HashSet<String>());
@@ -501,19 +530,5 @@ public class WinsomeDB implements Serializable {
 
         return true;
     }
-/*
-    protected boolean addFollower(String user, String follower){
-        try{
-            return this.users.get(user).addFollower(follower);
-        } catch ( Exception e ){
-            return false;
-        }
-    }
-*/
-    // TODO deve restituire una copia
-    protected WinsomeDB getDBCopy(){
 
-        return this;
-    }
-    
 }
