@@ -175,23 +175,20 @@ public class RewardCalculator implements Runnable{
                         for ( String curator : curators ){
                             // Per ogni curatore del post aggiorno la ricompensa totale
                             if ( rewardPerUser.get(curator) != null ){
+                                // Se era già inserito nella struttura incremento il guadagno
                                 rewUpdate = rewardPerUser.get(curator);
-                                rewUpdate += ( rewPost * percCur ) / curators.size();
+                                rewUpdate = rewUpdate + ( rewPost * percCur ) / curators.size();
                                 rewardPerUser.replace(curator, rewUpdate);
                             }
                             else 
-                                rewardPerUser.replace(curator, null, (rewPost * percCur) / curators.size() );
+                                rewardPerUser.put(curator, (rewPost * percCur) / curators.size() );
                         }
                         
                         // Aggiorno le ricompense dell'utente con quelle calcolate sul post
-                        if ( rewardPerUser.get(user) != null ){
-                            rewUpdate = rewardPerUser.get(user);
-                            rewUpdate += rewPost * percAuth;
-                            rewardPerUser.replace(user, rewUpdate);
-                        }
-                        else 
-                            rewardPerUser.replace(user, null, rewPost * percAuth);
-
+                        rewUpdate = rewardPerUser.get(user); // Non dà NullPointerException perché aggiungo user alla struttura come prima operazione
+                        rewUpdate = rewUpdate + (rewPost * percAuth);
+                        rewardPerUser.replace(user, rewUpdate);
+                        
                     }
                     } finally { database.lock.readLock().unlock(); }
                 }
