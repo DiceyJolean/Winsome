@@ -6,41 +6,24 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
-import java.net.URL;
-import java.net.URLConnection;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Queue;
-import java.util.Set;
 
 import shared.*;
 
-// import server.RewardCalculator.RewardCalculatorConfigurationException;
-// import shared.*;
-
 public class ServerMain {
 
-    private static final boolean DEBUG = true;
-    private static final int KILOBYTE = 1024;
-    private static final String randomURL = "https://www.random.org/decimal-fractions/?num=1&dec=4&col=1&format=plain&rnd=new";
+    private static final boolean DEBUG = false;
     
-    private static volatile Boolean toStop = false; // Deve essere un oggetto per il passaggio per riferimento
-
     private static String multicastAddress = null;
     private static String filename = null;
     private static String rmiServiceName = null;
-    private static WinsomeDB database = null;
     private static RMIServiceInterface stub = null;
     private static int multicastPort = -1;
     private static int tcpPort = -1;
@@ -49,217 +32,12 @@ public class ServerMain {
     private static int autosavePeriod = -1;
     private static float percAuth = -1;
 
-    private static double getRandom(){
-        double random = 0.0;
-        try{
-            URL url = new URL(randomURL);
-            URLConnection urlConn = url.openConnection();
-            BufferedReader buf = new BufferedReader(new InputStreamReader(urlConn.getInputStream()));
-            random = Double.parseDouble(buf.readLine());
-
-        } catch ( NumberFormatException e ){
-            // TODO se viene sollevata un'eccezione qui dentro, ha senso terminare il server
-            e.printStackTrace();
-        } catch ( IOException e ){
-            // TODO se viene sollevata un'eccezione qui dentro, ha senso terminare il server
-            e.printStackTrace();
-        } catch ( Exception e ){
-            // TODO se viene sollevata un'eccezione qui dentro, ha senso terminare il server
-            e.printStackTrace();
-        }
-        
-        return random;
-    }
-
-    private static String toSimplePost(Set<WinsomePost> tmp){
-        StringBuilder s = new StringBuilder();
-
-        for ( WinsomePost post : tmp )
-            s = s.append("\tId: " + post.getIdPost() + "\n\tAutore: " + post.getAuthor() + "\n\tTitolo: " + post.getTitle() + "\n");
-
-        if ( s.length() == 0 )
-            s.append("Nessun post presente\n");
-
-        return s.toString();
-    }
-
-    private static String processRequest(String request){
-        String reply = ""; // Messaggio di risposta da inviare al client
-        String description = Communication.Success.toString(); // Descrizione dell'esito dell'operazione
-        String attr = ""; // Eventuali attributi da restituire al client
-        
-        // La richiesta è nel formato OPERATION;USERNAME;ATTRIBUTI
-        String[] token = request.split(";");
-
-        Operation operation = Operation.valueOf(new String(token[0]));
-        String user = new String(token[1]);
-
-        if ( DEBUG ) System.out.println("SERVER: Processo la richiesta di " + operation + " dell'utente " + user);
-
-        try{
-            switch ( operation ){
-                case ADD_COMMENT:{
-                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.addComment(user, Integer.parseInt(token[2]), token[3]) ? Communication.Success.toString() : Communication.Failure.toString();
-                    break;
-                }
-                case CREATE_POST:{
-                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.createPost(user, token[2], token[3]) ? Communication.Success.toString() : Communication.Failure.toString();
-                    break;
-                }
-                case DELETE_POST:{
-                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.deletePost(user, Integer.parseInt(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
-                    break;
-                }
-                case FOLLOW_USER:{
-                    // user inizia a seguire
-                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.followUser(user, token[2]) ? Communication.Success.toString() : Communication.Failure.toString();
-                    // notifico all'utente che viene seguito che user ha iniziato a seguirlo
-                    stub.doCallback(token[2], "FOLLOW;" + user +";");
-                    break;
-                }
-                case GET_WALLET:{
-                    attr = "";
-                    double wallet = 0;
-                    Queue<WinsomeWallet> queue = database.getWallet(user);
-                    if ( queue == null || queue.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
-                        description = Communication.EmptySet.toString();
-                        break;
-                    }
-                    for ( WinsomeWallet w : queue ){
-                        attr = attr + w.getKey() + " " + w.getValue() + "\n";
-                        wallet = wallet + w.getValue();
-                    }
-
-                    attr += "Valore del portafoglio : " + wallet + "\n;";
-
-                    break;
-                }
-                case GET_WALLET_BITCOIN:{
-                    Queue<WinsomeWallet> queue = database.getWallet(user);
-                    if ( queue == null || queue.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
-                        description = Communication.EmptySet.toString();
-                        break;
-                    }
-                    double n = getRandom();
-                    double walletbtc = 0;
-                    attr = "";
-                    for ( WinsomeWallet w : queue ){
-                        attr = attr + w.getKey() + " " + w.getValue()*n + ")\n";
-                        walletbtc = walletbtc + w.getValue()*n;
-                    }
-
-                    attr += "Valore del portafoglio in bitcoin : " + walletbtc + " (Tasso di conversione: " + n + "\n;";
-
-                    break;
-                }
-                case LIST_FOLLOWING:{
-                    Set<String> following = database.listFollowing(user);
-                    if ( following == null || following.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
-                        description = Communication.EmptySet.toString();
-                        break;
-                    }
-                    attr = Arrays.toString( following.toArray() );
-                    break;
-                }
-                case LIST_USERS:{
-                    Set<String> users = database.listUsers(user);
-                    if ( users == null || users.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
-                        description = Communication.EmptySet.toString();
-                        break;
-                    }
-                    attr = Arrays.toString( users.toArray());
-                    break;
-                }
-                case LOGIN:{
-                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.login(user, new String(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
-                    break;
-                }
-                case LOGOUT:{
-                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.logout(user) ? Communication.Success.toString() : Communication.Failure.toString();
-                    break;
-                }
-                case RATE_POST:{
-                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.ratePost(user, Integer.parseInt(token[2]), Integer.parseInt(token[3])) ? Communication.Success.toString() : Communication.Failure.toString();
-                    break;
-                }
-                case REWIN_POST:{
-                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.rewinPost(user, Integer.parseInt(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
-                    break;
-                }
-                case SHOW_FEED:{
-                    Set<WinsomePost> tmp = database.showFeed(user, true);
-                    if ( tmp == null || tmp.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
-                        description = Communication.EmptySet.toString();
-                        break;
-                    }
-                    description = Communication.Success.toString();
-                    attr = toSimplePost(tmp) + ";";
-
-                    break;
-                }
-                case SHOW_POST:{
-                    attr = database.showPost(Integer.parseInt(token[2])) + "\n;";
-                    description = Communication.Success.toString();
-                    break;
-                }
-                case UNFOLLOW_USER:{
-                    // user smette di seguire
-                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.unfollowUser(user, token[2]) ? Communication.Success.toString() : Communication.Failure.toString();
-                    stub.doCallback(token[2], "UNFOLLOW;" + user +";");
-                    break;
-                }
-                case VIEW_BLOG:{
-                    Set<WinsomePost> tmp = database.viewBlog(user, true);
-                    if ( tmp == null || tmp.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
-                        description = Communication.EmptySet.toString();
-                        break;
-                    }
-                    description = Communication.Success.toString();
-                    attr = toSimplePost(tmp) + ";";
-
-                    break;
-                }
-                default:{
-                    description = Communication.OperationNotSupported.toString();
-                    if ( DEBUG ) System.out.println("SERVER: Qualcosa è andato storto nel processare la richiesta: " + operation);
-                    
-                    return description.toString() + "\n" + attr.toString() + "\n";
-                }
-            }
-        } catch ( WinsomeException e ){
-            attr = "";
-            description = e.getMessage();
-        } catch ( NullPointerException | IllegalArgumentException e ){
-            attr = "";
-            description = Communication.Failure.toString();
-        }
-        catch ( Exception e ){
-            attr = "";
-            description = Communication.Failure.toString();
-            e.printStackTrace();
-        } finally {
-            reply = description + "\n" + attr.toString() + "\n";
-        }            
-
-        if ( DEBUG ) System.out.println("SERVER: Restituisco " + reply + " da processRequest");
-        return reply;
-    }
-
     public static void main (String[] args){
 
         // Leggo i parametri per la configurazione iniziale dal file passato come argomento
         File configFile = new File(args[0]);
         if ( !configFile.exists() || !configFile.isFile() ){
-            // TODO terminazione
+            System.err.println("SERVER: Errore nel file di configurazione, terminazione");
             System.exit(1);
         }
 
@@ -326,18 +104,8 @@ public class ServerMain {
                 }
 
             }
-            if ( multicastAddress == null || autosavePeriod < 0 || rewardPeriod < 0 || rmiPort < 0 || rmiServiceName == null || tcpPort < 0 || multicastPort < 0 ){
-                System.err.print("SERVER: Errore nei parametri di configurazione\n" + 
-                "TCP_PORT = " + tcpPort + "\n" +
-                "MULTICAST_ADDRESS = " + multicastAddress + "\n" +
-                "MULTICAST_PORT = " + multicastPort + "\n" +
-                "RMI_PORT = " + rmiPort + "\n" +
-                "RMI_NAME_SERVICE = " + rmiServiceName + "\n" +
-                "REWARD_PERIOD = " + rewardPeriod + "\n" +
-                "PERC_AUTH = " + percAuth + "\n" +
-                "AUTOSAVE_PERIOD = " + autosavePeriod + "\n" +
-                "DATABASE = " + filename + "\n"
-                );
+            if ( multicastAddress == null || autosavePeriod < 0 || rewardPeriod < 0 || rmiPort < 0 || rmiServiceName == null || tcpPort < 0 || multicastPort < 0 || filename == null || percAuth < 0 ){
+                System.err.println("SERVER: Errore nei parametri di configurazione, terminazione");
                 System.exit(1);
             }
         } catch ( Exception e ){
@@ -348,25 +116,24 @@ public class ServerMain {
         if ( DEBUG ) System.out.println("SERVER: Parametri di configurazione corretti");
 
         WinsomeState state = null;
+        Thread stateThread = null;
 
         // Ripristino lo stato di Winsome e avvio il thread per il salvataggio periodico
-        // Working
+        WinsomeDB database = null;
         try{
             state = new WinsomeState(filename, database, autosavePeriod);
             database = state.loadWinsomeState();
             if ( database == null ){
-                System.err.println("SERVER: Errore nel caricamento del database\n");
+                System.err.println("SERVER: Errore nel caricamento del database, terminazione\n");
                 System.exit(1);
             }
-            Thread s = new Thread(state);
-            s.start();
+            stateThread = new Thread(state);
         } catch ( IOException e ){
             e.printStackTrace();
             System.exit(1);
         }
-                
+        
         // Preparazione del servizio RMI
-        // Working
         try {
             WinsomeRMIService serviceRMI = new WinsomeRMIService(database);
             // Rappresentante del servizio che deve essere reperito in qualche modo dal client
@@ -375,7 +142,7 @@ public class ServerMain {
             Registry r = LocateRegistry.getRegistry(rmiPort);
             r.rebind(rmiServiceName, stub);
 
-            if ( DEBUG ) System.out.println("Server: Servizio RMI pronto su (" + rmiServiceName + ", " + rmiPort + ")\n");
+            if ( DEBUG ) System.out.println("SERVER: Servizio RMI pronto su (" + rmiServiceName + ", " + rmiPort + ")\n");
         } catch ( RemoteException e ){
             e.printStackTrace();
             System.exit(1);
@@ -385,17 +152,11 @@ public class ServerMain {
         try{
             rewardCalculator = new RewardCalculator(rewardPeriod, percAuth, multicastPort, multicastAddress, database);
         } catch ( UnknownHostException e ){
-            System.err.println(e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
-        /*
-        catch ( NullArgumentException e ){
-            System.err.println(e.getMessage());
-            System.exit(1);
-        }
-        */
-        Thread rwc = new Thread(rewardCalculator);
-        rwc.start();
+
+        Thread rewardThread = new Thread(rewardCalculator);
         
         if ( DEBUG ) System.out.println("SERVER: RewardCalculator avviato");
 
@@ -413,129 +174,50 @@ public class ServerMain {
             serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);   
 
         } catch ( Exception e ){
-            System.err.println(e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
 
-        // Ciclo principale in cui il server esegue le richieste dei client
-        while(true){ // Termina con interruzione da terminale
-            try{
-                if ( DEBUG) System.out.printf("SERVER: In attesa di nuove richieste sulla porta %d\n", tcpPort);
-                selector.select();
-                if ( toStop ){
-                    // TODO
-                    System.out.println(("SERVER: in chiusura"));
-                    state.updateWinsomeState();
-                    selector.close();
-                    serverSocketChannel.close();
-                    System.exit(0);
-                }
-                // Tra i canali registrati sul selettore selector, seleziona quelli 
-                // pronti per almeno una delle operazioni di I/O dell'interest set.
-            } catch ( Exception e ){
-                System.err.println(e.getMessage());
-                break;
+        Worker worker = new Worker(selector, database, multicastAddress, multicastPort, stub);
+        Thread threadWorker = new Thread(worker);
+
+        System.out.println("SERVER: Avvio del server");
+        stateThread.start();
+        rewardThread.start();
+        threadWorker.start();
+        System.out.println("SERVER: Avvio avvenuto con successo");
+
+        try(
+            BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
+        ){
+            for (String line = input.readLine(); !line.equals("quit"); line = input.readLine() ) ;
+
+            return;
+        } catch ( IOException e ){
+            e.printStackTrace();
+        } finally {
+
+            // Ricevo quit dal terminale, quindi termino i thread e termino il main
+            
+            rewardCalculator.terminate();
+            rewardThread.interrupt();
+
+            worker.terminate();
+            selector.wakeup();
+
+            state.terminate();
+            stateThread.interrupt();
+
+            try {
+                selector.close();
+                serverSocketChannel.close();
+            } catch ( IOException e ){
+                e.printStackTrace();
+                System.exit(1);
             }
-            // Il selector si sveglia, c'è stata una richiesta su un canale
-
-            Set <SelectionKey> readyKeys = selector.selectedKeys();
-            Iterator <SelectionKey> iterator = readyKeys.iterator();
-            while ( iterator.hasNext() ){
-                SelectionKey key = iterator.next();
-                // Rimuove la chiave dal Selected Set, ma non dal Registered Set
-                iterator.remove();
-                try{
-                    if ( key.isAcceptable() ){
-                        // Nuova connessione accettata dal channel
-                        // Connessione implicita lato Server
-                        ServerSocketChannel server = (ServerSocketChannel) key.channel();
-                        SocketChannel client = server.accept();
-                        if ( DEBUG ) System.out.println("SERVER: Connessione accettata");
-                        client.configureBlocking(false);
-                        
-                        // Nuovo client, l'operazione che voglio associare è la lettura
-                        client.register(selector, SelectionKey.OP_READ);
-                    }
-                    else if ( key.isReadable() ){
-                        
-                        SocketChannel client = (SocketChannel) key.channel();
-                        String msg = ( String ) key.attachment();
-                        client.configureBlocking(false);
-
-                        // if ( DEBUG ) System.out.println("SERVER: Provo a leggere cosa mi ha inviato un client");
-                        ByteBuffer buffer = ByteBuffer.allocate(KILOBYTE);
-                        buffer.clear();
-
-                        int byteRead = client.read(buffer);
-                        // if ( DEBUG ) System.out.println("SERVER: Leggo "+ byteRead + " bytes dal client");
-
-                        buffer.flip();
-                        if ( msg == null )
-                            msg = StandardCharsets.UTF_8.decode(buffer).toString();
-                        else
-                            msg = msg + StandardCharsets.UTF_8.decode(buffer).toString();
-                        
-                        if ( byteRead == KILOBYTE ){
-                            // Ho riempito il buffer, potrei non aver letto tutto
-                            key.attach(msg);
-                            // if ( DEBUG ) System.out.println("SERVER: Lettura incompleta, compongo il messaggio al ciclo successivo, per ora ho letto \""+ msg +"\"");
-                        }
-                        else if ( byteRead == -1 ){
-                            key.cancel();
-                            key.channel().close();
-                            if ( DEBUG ) System.out.println("SERVER: Socket chiusa dal client\n");
-                        }
-                        else if ( byteRead < KILOBYTE ){
-                            // Ho letto tutto quello che il client ha inviato al server
-                            if ( DEBUG ) System.out.println("SERVER: Leggo una richiesta dal client");
-                            // Elaboro la richiesta
-                            // Metto la risposta nell'attachment
-                            String reply = processRequest(msg);
-                            // if ( DEBUG ) System.out.println("SERVER: Spero di leggere questo messaggio! Significa che processRequest è ritornata");
-                            key.attach(reply);
-
-                            key.interestOps(SelectionKey.OP_WRITE);
-                            
-                        }
-                    }
-                    else if ( key.isWritable() ){
-                        
-                        SocketChannel client = (SocketChannel) key.channel();
-                        client.configureBlocking(false);
-
-                        String reply = ( String ) key.attachment();
-
-                        if ( reply == null ){
-                            System.err.println("SERVER: Errore con il client, chiudo la connessione");
-                            key.cancel();
-                            client.close();
-                        }
-                        // if ( DEBUG ) System.out.println("SERVER: Sto per inviare la risposta al client, analiziamola:\n" + reply);
-                        // if ( DEBUG ) System.out.println("SERVER: Faccio la wrap della richiesta, poi la write");
-
-                        ByteBuffer buffer = ByteBuffer.wrap(reply.getBytes());
-                        int byteWrote = client.write(buffer);
-
-                        if ( byteWrote == reply.getBytes().length ){
-                            // Ho scritto tutto
-                            if ( DEBUG ) System.out.println("SERVER: Ho inviato la risposta al client\n");
-                            key.attach(null); // Resetto l'attchament, altrimenti ritrovo la reply in allegato quando vado a leggere la prossima richiesta di questo client
-                            key.interestOps(SelectionKey.OP_READ);                            
-                        }
-                        // TODO se non ho scritto tutto? Limit e position saranno nella giusta posizione per la prossima scrittura
-                        // Sarebbe così se mandassi un byte buffer, ma mando un oggetto reply
-                    }
-                } catch ( Exception e ){
-                    e.printStackTrace();
-                    key.cancel();
-                    try {
-                        key.channel().close();
-                    } catch ( Exception ex ){
-                        System.err.println(e.getMessage());
-                        System.exit(1);
-                    }
-                }
-            }
+            System.out.println("SERVER: In chiusura");
+            System.exit(0);
+            
         }
     }
 

@@ -29,7 +29,7 @@ public class RewardCalculator implements Runnable{
         }
     }
 */
-    private volatile boolean terminate = false; // Variabile per la terminazione del thread
+    private volatile boolean toStop = false; // Variabile per la terminazione del thread
     // Puntatore al DB dei post per poter richiedere la lista
     private WinsomeDB database;
     
@@ -56,9 +56,8 @@ public class RewardCalculator implements Runnable{
 
     }
     
-    public boolean terminate(){
-        this.terminate = true;
-        return true;
+    public void terminate(){
+        toStop = true;
     }
 
     // Periodicamente richiede una copia del database dei post al server
@@ -80,12 +79,15 @@ public class RewardCalculator implements Runnable{
             byte[] buf = ( new String("Nuove ricompense disponibili")).getBytes();
             DatagramPacket packet = new DatagramPacket(buf, buf.length, address, port);
 
-            while ( !terminate ){
+            while ( !toStop ){
                 try{
                     // Si sospende fino alla prossima esecuzione del calcolo delle ricompense
                     Thread.sleep(period);
                 } catch ( InterruptedException e ){
-                    // TODO Eccezione fatale
+                    System.out.println("REWARD: Thread interrotto, in chiusura...");
+                    socket.close();
+                    System.out.println("REWARD: Terminazione");
+                    System.exit(0);
                 }
 
                 // Inizializzo la struttura che contiene per ogni utente iscritto a Winsome la propria ricompensa per questa iterazione
@@ -221,8 +223,9 @@ public class RewardCalculator implements Runnable{
                     // Invio la notifica che le ricompense sono state aggiorate
                     socket.send(packet);
             }
-
             socket.close();
+            System.out.println("REWARD: Terminazione");
+            System.exit(0);
         } catch ( Exception e ){
             // TODO Eccezione fatale che non dipende dai parametri, ha senso terminare il thread
             e.printStackTrace();

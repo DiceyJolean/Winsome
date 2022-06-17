@@ -22,14 +22,11 @@ public class RewardUpdater implements Runnable{
             // Genero l'indirizzo IP di multicast
             address = InetAddress.getByName(multicastAddress);
             if ( !address.isMulticastAddress() ){
-                System.err.printf("CLIENT: L'indirizzo %s non è un Multicast Address\n", address);
+                System.err.println("CLIENT: L'indirizzo " + address + " non è un Multicast Address\n");
                 return;
             }
-            else
-                System.out.printf("CLIENT: L'indirizzo %s è un Multicast Address\n", address);
         }
         catch ( UnknownHostException e ){
-            System.err.printf("CLIENT: %s", e.getMessage());
             throw e;
         }
         
@@ -55,10 +52,10 @@ public class RewardUpdater implements Runnable{
         while ( true ){
             try{
                 multicastSocket.receive(packet);
-                System.out.println("Calcolo delle ricompense effettuato, il portafoglio è stato aggiornato");
+                System.out.println("Calcolo delle ricompense effettuato");
                 System.out.flush();
             } catch ( IOException e ){
-                // Il client termina e chiude la socket per permettere a questo thread di terminare a sua volta
+                // Il client termina e chiude la socket con il metodo stop per permettere a questo thread di terminare a sua volta
                 return;
             }
         }

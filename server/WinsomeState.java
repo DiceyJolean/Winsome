@@ -32,7 +32,7 @@ public class WinsomeState implements Runnable {
             file.createNewFile();
     }
 
-    public void Stop(){
+    public void terminate(){
         toStop = true;
     }
 
@@ -42,14 +42,19 @@ public class WinsomeState implements Runnable {
                 Thread.sleep(period);
 
                 // Salvo lo stato attuale del Database su un nuovo file
-                System.out.println("DATABASE: Autosalvataggio in corso...");
+                System.out.println("BACKUP: Autosalvataggio in corso...");
                 if ( updateWinsomeState() )
-                    System.out.println("DATABASE: Autosalvataggio completato!");
+                    System.out.println("BACKUP: Autosalvataggio completato!");
 
             } catch ( InterruptedException e ){
-                e.printStackTrace();
+                System.out.println("BACKUP: Thread interrotto, in chiusura...");
+                updateWinsomeState();
+                System.out.println("BACKUP: Terminzaione");
+                System.exit(0);
             }
         }
+        System.out.println("BACKUP: Terminzaione");
+        System.exit(0);
     }
 
     public boolean updateWinsomeState(){
@@ -94,7 +99,7 @@ public class WinsomeState implements Runnable {
             }
         }
 
-        System.out.println("DATABASE: Stato di Winsome ripristinato correttamente");
+        System.out.println("BACKUP: Stato di Winsome ripristinato correttamente");
         this.db = database;
         return database;
     }

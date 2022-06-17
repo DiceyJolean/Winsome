@@ -33,7 +33,7 @@ import shared.*;
     Fa controlli sulla validità della richiesta prima di inoltrarla al client
 */
 public class ClientMain {
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private static final int MINTAGS = 1;
     private static final int MAXTAGS = 5;
 
@@ -58,8 +58,7 @@ public class ClientMain {
             System.exit(1);
         }
 
-        String multicastAddress = null;
-        int multicastPort = 0, tcpPort = 0, connectionAttempt = 0;
+        int tcpPort = 0, connectionAttempt = 0;
         long retryTime = 0;
 
         // Lettura dei parametri iniziali
@@ -70,16 +69,6 @@ public class ClientMain {
                 String[] token = line.split("=");
 
                 switch ( token[0] ){
-                    case "MULTICAST_ADDRESS":{
-                        multicastAddress = new String(token[1]);
-                        break;
-                    }
-                    case "MULTICAST_PORT":{
-                        multicastPort = Integer.parseInt(token[1]);
-                        if ( multicastPort < 1024 || multicastPort > 65535 )
-                            System.exit(1);
-                        break;
-                    }
                     case "TCP_PORT":{
                         tcpPort = Integer.parseInt(token[1]);
                         if ( tcpPort < 1024 || tcpPort > 65535 )
@@ -155,16 +144,6 @@ public class ClientMain {
             in = new BufferedReader( new InputStreamReader( socket.getInputStream() ));            
         } catch ( Exception e ){
             e.printStackTrace();
-            System.exit(1);
-        }
-
-        // Iscrizione al gruppo di multicast per l'aggiornamento delle ricompense
-        try{
-            rewardUpdater = new RewardUpdater(multicastAddress, multicastPort);
-            Thread t = new Thread(rewardUpdater);
-            t.start();
-        } catch ( Exception e ){
-            System.err.println("Errore durante la connessione al servizio di multicast per le ricompense " + e.getMessage());
             System.exit(1);
         }
 
@@ -442,6 +421,10 @@ public class ClientMain {
                         unfollowUser(user);
                         break;
                     }
+                    case "help":{
+                        helpMessage();
+                        break;
+                    }
                     default:{
                         System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                         break;
@@ -449,17 +432,14 @@ public class ClientMain {
                 }
             }
 
-            System.out.println("Chiusura del client");
-            // TODO ci saranno delle operazioni di cleanup da dover fare?
-            
-            // Ad esempio la logout? 
-            if ( logged ) logout(); // mi importa controllare il valore di ritorno?
-            rewardUpdater.stop();
+            System.out.println("Terminazione in corso...");
+            if ( logged ) logout();
             socket.close();
         } catch ( IOException e ){
             System.err.println(e.getMessage());
             System.exit(1);
         }
+        System.out.println("Terminazione avvenuta con successo");
         System.exit(0);
     }
 
@@ -509,9 +489,8 @@ public class ClientMain {
 
         try{
             out.println(request);
-            System.out.println("CLIENT: Ho inviato la richiesta al server");
+            if ( DEBUG ) System.out.println("CLIENT: Ho inviato la richiesta al server");
             String reply = in.readLine();
-            in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
             logged = reply.equals(Communication.Success.toString()) ? true : false;
             
             if ( !logged ){
@@ -520,7 +499,20 @@ public class ClientMain {
             }
 
             thisUser = username;
+            // se il login ha avuto successo, il client si registra al servizio di multicast per la notifica delle ricompense
+            String multicastAddress = in.readLine();
+            int multicastPort = Integer.parseInt(in.readLine());
             
+            // Iscrizione al gruppo di multicast per l'aggiornamento delle ricompense
+            try{
+                rewardUpdater = new RewardUpdater(multicastAddress, multicastPort);
+                Thread t = new Thread(rewardUpdater);
+                t.start();
+            } catch ( Exception e ){
+                System.err.println("Errore durante la connessione al servizio di multicast per le ricompense " + e.getMessage());
+                System.exit(1);
+            }
+
             // se il login ha avuto successo, il client si registra al servizio di callback tramite RMI
             try{
                 if ( serviceRMI == null ){
@@ -574,7 +566,9 @@ public class ClientMain {
             }
             thisUser = null;
 
-            // Finita la fase di logout su Winsome, il client si cancella dal servizio di callback
+            // Una volta chiusa la sessione mi tolgo dal servizio di multicast
+            rewardUpdater.stop();
+            // Finita la sessione su Winsome, il client si cancella dal servizio di callback
             try{
                 serviceRMI.unregisterForCallback(stub);
                 if ( DEBUG ) System.out.println("CLIENT: Mi cancello dal servizio di notifica");

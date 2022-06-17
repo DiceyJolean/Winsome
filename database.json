@@ -1,61 +1,9 @@
 {
-  "bene": {
-    "nickname": "bene",
-    "psw": "$2a$10$PBGW.yHxr3rlaGVbQcPpAeeInVGjJ8sCsvfDF961edtXkgX44zZ/S",
+  "vale": {
+    "nickname": "vale",
+    "psw": "$2a$10$o9OGrkZFoqg74GPP58rPIO3PuMvtdXd4bdLOlT1qIBk3qULJEKWWi",
     "follower": [
       "erica"
-    ],
-    "following": [
-      "chiara",
-      "anna"
-    ],
-    "loggedIn": false,
-    "tags": [
-      "gatto"
-    ],
-    "postRewinned": [
-      1
-    ],
-    "blog": [],
-    "wallet": [
-      {
-        "date": "Jun 14, 2022, 10:22:38 AM",
-        "value": 0.013862942784903076
-      }
-    ]
-  },
-  "chiara": {
-    "nickname": "chiara",
-    "psw": "$2a$10$8tWorf5TIy3vkmWXZQcDLOP7vGT9qIaXbe3H2liyyIDZbh1kIXwaC",
-    "follower": [
-      "erica",
-      "bene"
-    ],
-    "following": [
-      "erica"
-    ],
-    "loggedIn": false,
-    "tags": [
-      "sole",
-      "gatto",
-      "luna"
-    ],
-    "postRewinned": [
-      1
-    ],
-    "blog": [],
-    "wallet": [
-      {
-        "date": "Jun 14, 2022, 10:21:38 AM",
-        "value": 0.015403269761003419
-      }
-    ]
-  },
-  "anna": {
-    "nickname": "anna",
-    "psw": "$2a$10$VLTNtmNdL1hx2k41a6vBceMCEHvksnjAf4Y5tpSqsw5065pD3sqAO",
-    "follower": [
-      "bene"
     ],
     "following": [],
     "loggedIn": false,
@@ -66,60 +14,132 @@
     "blog": [],
     "wallet": []
   },
+  "chiara": {
+    "nickname": "chiara",
+    "psw": "$2a$10$jrTdQI/GOsREQP3amn.ZC.ypZplUGGuUwAed0Z0ctghGslrkOQZKS",
+    "follower": [
+      "erica"
+    ],
+    "following": [
+      "erica"
+    ],
+    "loggedIn": false,
+    "tags": [
+      "sole"
+    ],
+    "postRewinned": [
+      1
+    ],
+    "blog": [
+      {
+        "idPost": 2,
+        "title": "wpp",
+        "author": "chiara",
+        "content": "post di chiara",
+        "newVotes": {},
+        "oldVotes": {
+          "erica": "LIKE"
+        },
+        "newComments": {},
+        "oldComments": {
+          "erica": [
+            "wuu"
+          ]
+        },
+        "rewinners": [],
+        "nIterations": 5
+      }
+    ],
+    "wallet": [
+      {
+        "date": "Jun 16, 2022, 5:24:09 PM",
+        "value": 0.06931471392451538
+      },
+      {
+        "date": "Jun 16, 2022, 5:24:39 PM",
+        "value": 0.04620980928301025
+      },
+      {
+        "date": "Jun 17, 2022, 3:18:28 PM",
+        "value": 0.5545177527109145
+      },
+      {
+        "date": "Jun 17, 2022, 3:18:58 PM",
+        "value": 0.27725887635545726
+      },
+      {
+        "date": "Jun 17, 2022, 3:19:58 PM",
+        "value": 0.13862942784903076
+      }
+    ]
+  },
   "erica": {
     "nickname": "erica",
-    "psw": "$2a$10$Dcbj3QSFa9XmZ.d3B9/h9ueH7VFCcw2SHimWoECGYTEhxY0m0Y7ym",
+    "psw": "$2a$10$Sc.HwJoIZe.TULEbEIx3PeTadMGxe4kg3WGKQDOaX5ZC7FJZETzXq",
     "follower": [
       "chiara"
     ],
     "following": [
-      "chiara",
-      "bene"
+      "vale",
+      "chiara"
     ],
     "loggedIn": false,
     "tags": [
       "sole",
-      "comune",
-      "in",
-      "un",
-      "tag"
+      "gatti",
+      "luna"
     ],
     "postRewinned": [],
     "blog": [
       {
         "idPost": 1,
-        "title": "gatto",
+        "title": "titolo_del_post",
         "author": "erica",
-        "content": "china è il mi gatto",
+        "content": "questo è il primo post di erica",
         "newVotes": {},
         "oldVotes": {
-          "chiara": "LIKE",
-          "bene": "LIKE"
+          "chiara": "LIKE"
         },
         "newComments": {},
         "oldComments": {
           "chiara": [
-            "wooo"
-          ],
-          "bene": [
-            "che bel post da bene"
+            "che bel post"
           ]
         },
         "rewinners": [
-          "chiara",
-          "bene"
+          "chiara"
         ],
-        "nIterations": 69
+        "nIterations": 24
+      },
+      {
+        "idPost": 3,
+        "title": "terzo",
+        "author": "erica",
+        "content": "post",
+        "newVotes": {},
+        "oldVotes": {},
+        "newComments": {},
+        "oldComments": {
+          "chiara": [
+            "viva"
+          ]
+        },
+        "rewinners": [],
+        "nIterations": 2
       }
     ],
     "wallet": [
       {
-        "date": "Jun 14, 2022, 10:21:38 AM",
-        "value": 0.06161308363454606
+        "date": "Jun 16, 2022, 5:24:09 PM",
+        "value": 0.27725887635545726
       },
       {
-        "date": "Jun 14, 2022, 10:22:38 AM",
-        "value": 0.1170648589056375
+        "date": "Jun 16, 2022, 5:24:39 PM",
+        "value": 0.18483925090363817
+      },
+      {
+        "date": "Jun 17, 2022, 3:19:58 PM",
+        "value": 0.5545177527109145
       }
     ]
   }
