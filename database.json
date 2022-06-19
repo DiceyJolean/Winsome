@@ -47,7 +47,7 @@
           ]
         },
         "rewinners": [],
-        "nIterations": 5
+        "nIterations": 8
       }
     ],
     "wallet": [
@@ -70,6 +70,10 @@
       {
         "date": "Jun 17, 2022, 3:19:58 PM",
         "value": 0.13862942784903076
+      },
+      {
+        "date": "Jun 17, 2022, 4:23:06 PM",
+        "value": 0.005134423253667806
       }
     ]
   },
@@ -103,20 +107,23 @@
         "newComments": {},
         "oldComments": {
           "chiara": [
-            "che bel post"
+            "che bel post",
+            "wooo"
           ]
         },
         "rewinners": [
           "chiara"
         ],
-        "nIterations": 24
+        "nIterations": 2
       },
       {
         "idPost": 3,
         "title": "terzo",
         "author": "erica",
         "content": "post",
-        "newVotes": {},
+        "newVotes": {
+          "chiara": "LIKE"
+        },
         "oldVotes": {},
         "newComments": {},
         "oldComments": {
@@ -125,7 +132,19 @@
           ]
         },
         "rewinners": [],
-        "nIterations": 2
+        "nIterations": 5
+      },
+      {
+        "idPost": 4,
+        "title": "lala",
+        "author": "erica",
+        "content": "uhuhhh",
+        "newVotes": {},
+        "oldVotes": {},
+        "newComments": {},
+        "oldComments": {},
+        "rewinners": [],
+        "nIterations": 0
       }
     ],
     "wallet": [
@@ -140,6 +159,10 @@
       {
         "date": "Jun 17, 2022, 3:19:58 PM",
         "value": 0.5545177527109145
+      },
+      {
+        "date": "Jun 17, 2022, 4:23:06 PM",
+        "value": 0.020537694544848686
       }
     ]
   }

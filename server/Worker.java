@@ -18,7 +18,7 @@ import java.util.Set;
 
 import shared.*;
 
-public class Worker implements Runnable{
+public class Worker extends Thread {
     private final static String randomURL = "https://www.random.org/decimal-fractions/?num=1&dec=4&col=1&format=plain&rnd=new";
     private volatile boolean toStop = false;
     private int KILOBYTE = 1024;
@@ -40,6 +40,7 @@ public class Worker implements Runnable{
 
     protected void terminate(){
         toStop = true;
+        selector.wakeup();
     }
 
     private double getRandom(){
@@ -169,8 +170,13 @@ public class Worker implements Runnable{
                 }
                 case LOGIN:{
                     // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.login(user, new String(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
-                    attr = multicastAddress + "\n" + multicastPort;
+                    if ( database.login(user, new String(token[2])) ){
+                        description = Communication.Success.toString();
+                        attr = multicastAddress + "\n" + multicastPort;
+                    }
+                    else
+                        description = Communication.Failure.toString();
+                        
                     break;
                 }
                 case LOGOUT:{
@@ -354,13 +360,19 @@ public class Worker implements Runnable{
                         key.channel().close();
                     } catch ( Exception ex ){
                         System.err.println(e.getMessage());
-                        System.exit(1);
+                        
                     }
                 }
             }
 
         }
+        try{
+            selector.close();
+        } catch ( IOException e ){
+            e.printStackTrace();
+            
+        }
         System.out.println("WORKER: Terminazione");
-        System.exit(0);
+        
     }
 }

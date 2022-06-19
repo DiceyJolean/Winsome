@@ -438,6 +438,9 @@ public class ClientMain {
         } catch ( IOException e ){
             System.err.println(e.getMessage());
             System.exit(1);
+        } catch ( Exception e ){
+            System.err.println("Errore fatale, terminazione");
+            System.exit(1);
         }
         System.out.println("Terminazione avvenuta con successo");
         System.exit(0);

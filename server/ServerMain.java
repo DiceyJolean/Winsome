@@ -116,7 +116,6 @@ public class ServerMain {
         if ( DEBUG ) System.out.println("SERVER: Parametri di configurazione corretti");
 
         WinsomeState state = null;
-        Thread stateThread = null;
 
         // Ripristino lo stato di Winsome e avvio il thread per il salvataggio periodico
         WinsomeDB database = null;
@@ -127,7 +126,6 @@ public class ServerMain {
                 System.err.println("SERVER: Errore nel caricamento del database, terminazione\n");
                 System.exit(1);
             }
-            stateThread = new Thread(state);
         } catch ( IOException e ){
             e.printStackTrace();
             System.exit(1);
@@ -156,8 +154,6 @@ public class ServerMain {
             System.exit(1);
         }
 
-        Thread rewardThread = new Thread(rewardCalculator);
-        
         if ( DEBUG ) System.out.println("SERVER: RewardCalculator avviato");
 
         // Apertura della connessione TCP con NIO
@@ -179,12 +175,11 @@ public class ServerMain {
         }
 
         Worker worker = new Worker(selector, database, multicastAddress, multicastPort, stub);
-        Thread threadWorker = new Thread(worker);
 
         System.out.println("SERVER: Avvio del server");
-        stateThread.start();
-        rewardThread.start();
-        threadWorker.start();
+        state.start();
+        rewardCalculator.start();
+        worker.start();
         System.out.println("SERVER: Avvio avvenuto con successo");
 
         try(
@@ -199,15 +194,21 @@ public class ServerMain {
 
             // Ricevo quit dal terminale, quindi termino i thread e termino il main
             
-            rewardCalculator.terminate();
-            rewardThread.interrupt();
+            try{
+                rewardCalculator.terminate();
+                rewardCalculator.join();
 
-            worker.terminate();
-            selector.wakeup();
+                worker.terminate();
+                worker.join();
 
-            state.terminate();
-            stateThread.interrupt();
+                state.terminate();
+                state.join();
 
+            } catch ( InterruptedException e ){
+                e.printStackTrace();
+                System.exit(1);
+            }
+            
             try {
                 selector.close();
                 serverSocketChannel.close();

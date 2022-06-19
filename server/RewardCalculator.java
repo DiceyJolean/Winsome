@@ -10,25 +10,14 @@ import java.util.Map;
 import java.util.Set;
 
 // Classe che implementa il thread che periodicamente calcola le ricompense
-public class RewardCalculator implements Runnable{
+public class RewardCalculator extends Thread {
 
     private int period;
     private double percAuth;
     private double percCur;
     private int port;
     private InetAddress address;
-/*
-    public class RewardCalculatorConfigurationException extends Exception{
 
-        public RewardCalculatorConfigurationException(){
-            super();
-        }
-
-        public RewardCalculatorConfigurationException(String s){
-            super(s);
-        }
-    }
-*/
     private volatile boolean toStop = false; // Variabile per la terminazione del thread
     // Puntatore al DB dei post per poter richiedere la lista
     private WinsomeDB database;
@@ -58,6 +47,7 @@ public class RewardCalculator implements Runnable{
     
     public void terminate(){
         toStop = true;
+        this.interrupt();
     }
 
     // Periodicamente richiede una copia del database dei post al server
@@ -86,8 +76,7 @@ public class RewardCalculator implements Runnable{
                 } catch ( InterruptedException e ){
                     System.out.println("REWARD: Thread interrotto, in chiusura...");
                     socket.close();
-                    System.out.println("REWARD: Terminazione");
-                    System.exit(0);
+                    break;
                 }
 
                 // Inizializzo la struttura che contiene per ogni utente iscritto a Winsome la propria ricompensa per questa iterazione
@@ -222,7 +211,6 @@ public class RewardCalculator implements Runnable{
             }
             socket.close();
             System.out.println("REWARD: Terminazione");
-            System.exit(0);
         } catch ( Exception e ){
             // TODO Eccezione fatale che non dipende dai parametri, ha senso terminare il thread
             e.printStackTrace();

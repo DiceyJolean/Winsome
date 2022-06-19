@@ -12,7 +12,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 // Classe che si occupa del caricamento e del salvataggio dello stato di Winsome
-public class WinsomeState implements Runnable {
+public class WinsomeState extends Thread {
     private WinsomeDB db;
     private File file;
     private String filename;
@@ -34,27 +34,27 @@ public class WinsomeState implements Runnable {
 
     public void terminate(){
         toStop = true;
+        this.interrupt();
     }
 
     public void run(){
-        while ( !toStop ){
-            try{
+        try{
+            while ( !toStop ){
+            
                 Thread.sleep(period);
 
                 // Salvo lo stato attuale del Database su un nuovo file
                 System.out.println("BACKUP: Autosalvataggio in corso...");
                 if ( updateWinsomeState() )
                     System.out.println("BACKUP: Autosalvataggio completato!");
-
-            } catch ( InterruptedException e ){
-                System.out.println("BACKUP: Thread interrotto, in chiusura...");
-                updateWinsomeState();
-                System.out.println("BACKUP: Terminzaione");
-                System.exit(0);
             }
+
+        } catch ( InterruptedException e ){
+            System.out.println("BACKUP: Thread interrotto, in chiusura...");
+        } finally {
+            updateWinsomeState();
+            System.out.println("BACKUP: Terminazione");
         }
-        System.out.println("BACKUP: Terminzaione");
-        System.exit(0);
     }
 
     public boolean updateWinsomeState(){
