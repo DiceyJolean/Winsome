@@ -140,7 +140,7 @@ public class RewardCalculator extends Thread {
                             int voteSum = post.countVote(curators);
                             // In questo punto lo stesso post potrebbe ricevere alcuni commenti e non mi piace
                             // Sincronizzo durante il calcolo
-                            int commentSum = post.countComments(curators);
+                            double commentSum = post.countComments(curators);
 
                             // TODO se qui cambio da lettura a scrittura si presenta la race condition in cui l'autore del post potrebbe rimuoverlo nel frattempo
                             // Ma il fatto che sia sincronizzato lo impedisce? Sì!!!
