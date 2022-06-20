@@ -110,9 +110,14 @@ public class Worker extends Thread {
                 case FOLLOW_USER:{
                     // user inizia a seguire
                     // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.followUser(user, token[2]) ? Communication.Success.toString() : Communication.Failure.toString();
-                    // notifico all'utente che viene seguito che user ha iniziato a seguirlo
-                    stub.doCallback(token[2], "FOLLOW;" + user +";");
+                    if ( database.followUser(user, token[2]) ){
+                        description = Communication.Success.toString();
+                        // notifico all'utente che viene seguito che user ha iniziato a seguirlo
+                        stub.doCallback(token[2], "FOLLOW;" + user +";");
+                    }
+                    else 
+                        description = Communication.Failure.toString();
+
                     break;
                 }
                 case GET_WALLET:{
@@ -213,8 +218,14 @@ public class Worker extends Thread {
                 case UNFOLLOW_USER:{
                     // user smette di seguire
                     // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.unfollowUser(user, token[2]) ? Communication.Success.toString() : Communication.Failure.toString();
-                    stub.doCallback(token[2], "UNFOLLOW;" + user +";");
+                    if ( database.unfollowUser(user, token[2]) ){
+                        description = Communication.Success.toString();
+                        // notifico all'utente che viene seguito che user ha smesso di seguirlo
+                        stub.doCallback(token[2], "UNFOLLOW;" + user +";");
+                    }
+                    else 
+                        description = Communication.Failure.toString();
+
                     break;
                 }
                 case VIEW_BLOG:{

@@ -8,7 +8,7 @@ import java.util.Set;
 import shared.*;
 
 public class WinsomeRMIService extends RemoteObject implements RMIServiceInterface {
-    private final static boolean DEBUG = true;
+    private final static boolean DEBUG = false;
 
     private Set<ClientNotifyInterface> clients;
     private WinsomeDB db;
@@ -54,7 +54,6 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
     }
 
     @Override
-    // TODO Il synch è per clients, ma la getFollower è una sezione critica
     public synchronized boolean unregisterForCallback(ClientNotifyInterface user)
     throws RemoteException {
 
@@ -80,7 +79,7 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
          * perché non si è ancora registrato alle callback, o si è de-registrato al logout
          */
         
-        return false;        
+        return false;
     }
     
 }
