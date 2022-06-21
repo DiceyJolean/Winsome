@@ -8,6 +8,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
+/**
+ * Classe che rappresenta l'entità post all'interno di Winsome
+ */
 public class WinsomePost implements Serializable {
 
     private int idPost; // Id del post
@@ -263,12 +266,11 @@ public class WinsomePost implements Serializable {
         return true;
     }
 
-
-    /**
-     * I metodi che seguono sono chiamati esclusivamente dal thread per il calcolo delle ricompense
-     * Non sono sincronizzati! Il thread per il calcolo delle ricompense si occuperà di gestire la concorrenza
-     * In questo modo la ricompensa relativa ai singoli post viene calcolata sulla stessa istanza dell'oggetto
-     */
+    /*
+        I metodi che seguono sono chiamati esclusivamente dal thread per il calcolo delle ricompense
+        Non sono sincronizzati! Il thread per il calcolo delle ricompense si occuperà di gestire la concorrenza
+        In questo modo la ricompensa relativa ai singoli post viene calcolata sulla stessa istanza dell'oggetto
+    */
 
     /**
      * Sposta i nuovi voti e i nuovi commenti insieme ai vecchi, ovvero quelli già contati dal thread che calcola le ricompense.
@@ -314,7 +316,8 @@ public class WinsomePost implements Serializable {
     protected int countVote(Set<String> curators){
         int voteSum = 0;
         for ( HashMap.Entry<String, Vote> vote : newVotes.entrySet() ){
-            
+            // Per ogni entry della struttura, quindi per ogni utente che ha votato il post
+            // Faccio la somma del valore dei voti e se il voto è positivo aggiungo l'utente ai curatori
             if ( vote.getValue() == Vote.LIKE ){
                 curators.add(vote.getKey());
                 voteSum++;
@@ -330,7 +333,6 @@ public class WinsomePost implements Serializable {
         return voteSum;
     }
 
-
     /**
      * Somma i commenti di questo post utilizzando la formula indicata nella specifica di Winsome, 
      * per ogni commento viene aggiunto l'autore del commento all'insieme dei curatori
@@ -343,7 +345,8 @@ public class WinsomePost implements Serializable {
 
         for ( Entry<String, ArrayList<String>> entry : newComments.entrySet() ){
             // Per ogni entry dell'hashmap, conto quanti commenti ha fatto ogni singolo user
-            commentSum = commentSum + 2/(1 + Math.pow(Math.E, entry.getValue().size()*(-1)));
+            int esp = entry.getValue().size();
+            commentSum = commentSum + 2/(1 + Math.pow(Math.E, esp*(-1)));
             // Poi aggiungo l'autore di quei commenti ai curatori
             curators.add(entry.getKey());
         }

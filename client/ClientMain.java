@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
+import server.WinsomeException;
 import shared.*;
 /**
  * Il parser potrebbe essere un thread avviato dal client dopo aver
@@ -470,6 +471,10 @@ public class ClientMain {
             return false;
         } catch ( NotBoundException e ){
             // Errore del server (non dell'utente), è ragionevole terminare TODO
+            return false;
+        }
+        catch ( WinsomeException e ){
+            e.getMessage();
             return false;
         }
         catch ( Exception e ){

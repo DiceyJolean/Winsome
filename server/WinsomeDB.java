@@ -17,74 +17,100 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * ovvero raccoglie tutti i post e gli utenti
  */
 public class WinsomeDB implements Serializable {
-
     private final boolean DEBUG = true;
 
     private Map<Integer, WinsomePost> posts;
-    private AtomicInteger newPost; // Ha senso che sia atomico se solo il server crea i post, e per giunta uno per volta
-    // Qual è il senso di rendere la struttura concurrent se poi utilizzo le lock?
+    private AtomicInteger newPost; // Non è necessario che sia atomic perché solo il worker crea e cancella post (quindi non si verificano race condition)
+
     protected ReadWriteLock lock; // Chiunque può creare un database, ma solo chi è nel package server può utilizzare la lock
     private Map<String, WinsomeUser> users;
+    
     private Map<String, Set<String>> tags;
 
+    /**
+     * Crea un nuovo database Winsome con le strutture inizializzate
+     */
     public WinsomeDB(){
         lock = new ReentrantReadWriteLock();
         posts = new HashMap<Integer, WinsomePost>(); // La concorrenza è gestita con la readwrite lock
-        users = new ConcurrentHashMap<String, WinsomeUser>(); // Ok per la putIfAbsent visto che la register è una sezione critica
-        // Non è concurrent perché soltanto il main del server vi accede
-        // In scrittura all'inserimento di un nuovo utente, in lettura alla richiesta di listUsers
+        users = new ConcurrentHashMap<String, WinsomeUser>(); // Concurrent perché possono verificarsi race condition con RMI
         tags = new HashMap<String, Set<String>>();
         newPost = new AtomicInteger(0);
     }
 
-    protected boolean addUser(WinsomeUser user){
+    /**
+     * Aggiunge un nuovo utente a Winsome. Questo metodo viene invocato dal thread che rispristina lo stato
+     * iniziale di Winsome e dalle funzioni RMI durante la registrazione di un nuovo utente
+     * 
+     * @param user Utente da aggiungere a Winsome
+     * @return true se l'inserimento è andato a buon fine, false altrimenti
+     * @throws NullPointerException Se user è null
+     * @throws WinsomeException Se era già presente un utente con lo stesso nickname in Winsome
+     */
+    protected boolean addUser(WinsomeUser user)
+    throws WinsomeException, NullPointerException {
         if ( user == null )
-            return false;
+            throw new NullPointerException();
 
+        // La lock è necessaria per evitare race condition tra le registrazioni di nuovi utenti e l'autosalvataggio dello stato
         lock.writeLock().lock();
-        if ( users.putIfAbsent(user.getNickname(), user) != null ){
-            lock.writeLock().unlock();
-            if ( DEBUG ) System.out.println("Inserimento di " + user.getNickname() + " fallito, nickname già in uso");
+        try {
+            if ( users.putIfAbsent(user.getNickname(), user) != null ){
+                if ( DEBUG ) System.out.println("Inserimento di " + user.getNickname() + " fallito, nickname già in uso");
             
-            return false;
+                throw new WinsomeException("Nickname già in uso");
+            }
+        } finally {
+            lock.writeLock().unlock();
         }
-        lock.writeLock().unlock();
 
         // Aggiorno la struttura dei tags
         Set<String> userTags = user.getTags();
         for ( String tag : userTags ){
             tag.toLowerCase();
             // Se non era presente lo aggiungo
-            synchronized ( tags ){
+            synchronized ( tags ){ // Devo sincronizzare perché più utenti possono registrarsi contemporaneamente
+                // Non ho scelto una struttura concorrente perché l'unica race condition sarebbe qui
+                // E avrei comunque bisogno di un blocco synchronized perché devo invocare due metodi su tags
+
                 tags.putIfAbsent(tag, new HashSet<String>());
                 // Poi aggiungo l'utente all'insieme di quelli che hanno indicato quel tag
                 tags.get(tag).add(user.getNickname());
             }
         }
 
-
         if ( DEBUG ) System.out.println("Inserimento di " + user.getNickname() + " avvenuto con successo\n");
         return true;
     }
 
-    private WinsomePost removePost(int id){
-        if ( id < 0 )
-            return null;
+    /**
+     * Rimuove il post dal database e rimuove i rewin del post
+     * 
+     * @param id ID del post da rimuovere
+     * @return true se l'operazione è andata a buon fine, false altrimenti
+     */
+    private boolean removePost(int id){
 
-        // TODO quando viene chiamato questo modifico la struttura è già bloccata in modalità scrittura
-        // lock.writeLock().lock();
+        // Non è necessario sincronizzare perché quando viene invocato questo metodo la struttura è già bloccata in modalità scrittura
         WinsomePost removed = posts.remove(id);
-        // lock.writeLock().unlock();
+        if ( removed == null )
+            return false;
 
         // Devo rendere consistenti i rewin di questo post
         Set<String> rewinners = removed.getRewinners();
         for ( String rewinner : rewinners )
             users.get(rewinner).removeRewin(id);
 
-        return removed;
+        return true;
     }
 
     // Restituisce un riferimento ai post pubblicati dall'utente
+    /**
+     * Restituisce un riferimento ai post pubblicati dall'utente
+     * 
+     * @param user Utente di cui si vogliono i post
+     * @return i post di cui user è l'autore (null è un valore valido)
+     */
     protected Set<WinsomePost> getPostPerUser(String user){
         /*
         // TODO qui concorrenza? restituisco una copia dei post
@@ -108,17 +134,26 @@ public class WinsomeDB implements Serializable {
 
 
     /*
-    Qui ci vanno le funzioni del database che chiamerà l'api del server
+    Qui ci vanno le funzioni del database che chiamerà il worker
     */
 
-    protected boolean followUser(String user, String toFollow)
-    throws WinsomeException {
-        // user inizia a seguire toFollow
+    /**
+     * Aggiunge un follower a quelli di un utente
+     * 
+     * @param username Utente che inizia a seguire
+     * @param toFollow L'utente da seguire
+     * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws NullPointerException Se username o toFollow sono null
+     */
+    protected boolean followUser(String username, String toFollow)
+    throws WinsomeException, NullPointerException {
+        // username inizia a seguire toFollow
 
-        if ( user == null || toFollow == null )
+        if ( username == null || toFollow == null )
             throw new NullPointerException();
 
-        WinsomeUser follower = users.get(user); // Chi segue
+        WinsomeUser follower = users.get(username); // Chi segue
         if ( follower == null )
             throw new WinsomeException("L'utente non è iscritto a Winsome");
 
@@ -131,14 +166,22 @@ public class WinsomeDB implements Serializable {
         
         lock.writeLock().lock();
         try {
-            return followed.addFollower(user) && follower.addFollowing(toFollow);
+            return followed.addFollower(username) && follower.addFollowing(toFollow);
         } finally {
             lock.writeLock().unlock();
         }
     }
     
+    /**
+     * 
+     * @param username
+     * @param toUnfollow
+     * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws NullPointerException Se username o toUnfollow sono null
+     */
     protected boolean unfollowUser(String username, String toUnfollow)
-    throws WinsomeException {
+    throws WinsomeException, NullPointerException {
         // user smette di seguire toUnfollow
 
         if ( username == null || toUnfollow == null )
@@ -163,8 +206,15 @@ public class WinsomeDB implements Serializable {
         }
     }
 
+    /**
+     * 
+     * @param username
+     * @return
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws NullPointerException Se username è null
+     */
     protected Set<String> listUsers(String username)
-    throws WinsomeException {
+    throws WinsomeException, NullPointerException {
         if ( username == null )
             throw new NullPointerException();
 
@@ -187,8 +237,15 @@ public class WinsomeDB implements Serializable {
         return usersWithTagInCommon;
     }
 
+    /**
+     * 
+     * @param username
+     * @return
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws NullPointerException Se username è null
+     */
     protected Set<String> listFollowing(String username)
-    throws WinsomeException {
+    throws WinsomeException, NullPointerException {
         if ( username == null )
             throw new NullPointerException();
 
@@ -202,8 +259,16 @@ public class WinsomeDB implements Serializable {
         return user.getFollowing();
     }
 
+    /**
+     * 
+     * @param username
+     * @param password
+     * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws NullPointerException Se username o password sono null
+     */
     protected boolean login(String username, String password)
-    throws WinsomeException {
+    throws WinsomeException, NullPointerException {
         if ( username == null || password == null )
             throw new NullPointerException();
 
@@ -219,8 +284,15 @@ public class WinsomeDB implements Serializable {
         }
     }
 
+    /**
+     * 
+     * @param username
+     * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws NullPointerException Se username è null
+     */
     protected boolean logout(String username)
-    throws WinsomeException {
+    throws WinsomeException, NullPointerException {
         if ( username == null )
             return false;
 
@@ -238,10 +310,17 @@ public class WinsomeDB implements Serializable {
             lock.writeLock().unlock();
         }
     }
-
-    // Post pubblicati e rewinnati dall'utente
+    
+    /**
+     * 
+     * @param username
+     * @param checkLogin
+     * @return
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws NullPointerException Se username è null
+     */
     protected Set<WinsomePost> viewBlog(String username, boolean checkLogin)
-    throws WinsomeException {
+    throws WinsomeException, NullPointerException {
         if ( username == null )
             throw new NullPointerException();
 
@@ -262,6 +341,16 @@ public class WinsomeDB implements Serializable {
         return blog;
     }
 
+    /**
+     * 
+     * @param author
+     * @param title
+     * @param content
+     * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws IllegalAccessException
+     * @throws NullPointerException Se author, title o content sono null
+     */
     protected boolean createPost(String author, String title, String content)
     throws WinsomeException, IllegalAccessException, NullPointerException {
         if ( author == null || title == null || content == null )
@@ -290,10 +379,16 @@ public class WinsomeDB implements Serializable {
         return true;
     }
 
-    // I post di tutti i miei seguiti più i loro rewin, ovvero
-    // il blog di tutti i miei utenti seguiti
+    /**
+     * 
+     * @param username
+     * @param checkLogin
+     * @return
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws NullPointerException Se username è null
+     */
     protected Set<WinsomePost> showFeed(String username, boolean checkLogin)
-    throws WinsomeException {
+    throws WinsomeException, NullPointerException {
         if ( username == null )
             throw new NullPointerException();
 
@@ -314,6 +409,13 @@ public class WinsomeDB implements Serializable {
         return feed;
     }
 
+    /**
+     * 
+     * @param idPost
+     * @return
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws IllegalArgumentException
+     */
     protected String showPost(int idPost)
     throws WinsomeException, IllegalArgumentException {
         if ( idPost < 0 )
@@ -327,6 +429,16 @@ public class WinsomeDB implements Serializable {
         return post.toPrint(); // Sincronizzata per la sezione critica nIter
     }
 
+    /**
+     * Elimina un post da Winsome, quindi lo elimina dal blog dell'autore e rimuove i suoi rewin
+     * 
+     * @param username Utente che richiede l'operazione
+     * @param idPost Id del post da eliminare
+     * @return true se l'operazione è andata a buon fine, false altrimenti
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws IllegalArgumentException Se idPost ha un valore negativo
+     * @throws NullPointerException Se username è null
+     */
     protected boolean deletePost(String username, int idPost)
     throws WinsomeException, IllegalArgumentException, NullPointerException {
         if ( idPost < 0 )
@@ -354,7 +466,7 @@ public class WinsomeDB implements Serializable {
         try{
             // Se l'eliminazione va a buon fine
             if ( user.removePost(post) )
-                if ( removePost(idPost) != null )
+                if ( removePost(idPost) )
                     return true;
         } catch ( WinsomeException e ){
             throw e;
@@ -365,6 +477,15 @@ public class WinsomeDB implements Serializable {
         return false;
     }
 
+    /**
+     * 
+     * @param username
+     * @param idPost
+     * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws IllegalArgumentException
+     * @throws NullPointerException Se username è null
+     */
     protected boolean rewinPost(String username, int idPost)
     throws WinsomeException, IllegalArgumentException, NullPointerException {        
         if ( idPost < 0 )
@@ -393,6 +514,16 @@ public class WinsomeDB implements Serializable {
         throw new WinsomeException("Non è possibile effettuare il rewin di un post che non è nel proprio feed");
     }
 
+    /**
+     * 
+     * @param username
+     * @param idPost
+     * @param vote
+     * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws IllegalArgumentException
+     * @throws NullPointerException Se username è null
+     */
     protected boolean ratePost(String username, int idPost, int vote)
     throws WinsomeException, IllegalArgumentException, NullPointerException {
         if ( idPost < 0 )
@@ -420,6 +551,16 @@ public class WinsomeDB implements Serializable {
         throw new WinsomeException("Non è possibile votare un post che non è nel proprio feed");
     }
 
+    /**
+     * 
+     * @param username
+     * @param idPost
+     * @param comment
+     * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws IllegalArgumentException
+     * @throws NullPointerException Se username o comment sono null
+     */
     protected boolean addComment(String username, int idPost, String comment)
     throws WinsomeException, IllegalArgumentException, NullPointerException {
         if ( idPost < 0 )
@@ -453,8 +594,15 @@ public class WinsomeDB implements Serializable {
         throw new WinsomeException("Non è possibile commentare un post che non è nel proprio feed");
     }
 
+    /**
+     * 
+     * @param username
+     * @return
+     * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
+     * @throws NullPointerException Se username è null
+     */
     protected Queue<WinsomeWallet> getWallet(String username)
-    throws WinsomeException {
+    throws WinsomeException, NullPointerException {
         if ( username == null )
             throw new NullPointerException();
 

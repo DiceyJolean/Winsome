@@ -103,7 +103,6 @@ public class Worker extends Thread {
                     break;
                 }
                 case DELETE_POST:{
-                    // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
                     description = database.deletePost(user, Integer.parseInt(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }

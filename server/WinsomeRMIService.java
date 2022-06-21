@@ -20,7 +20,7 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
 
     @Override
     public boolean register(String username, String password, Set<String> tags)
-    throws RemoteException {
+    throws RemoteException, WinsomeException {
         try{
             for ( String tag : tags )
                 tag.toLowerCase();
@@ -31,7 +31,11 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
             }
 
             return true;
-        } catch ( Exception e ){
+        }
+        catch ( WinsomeException e ){
+            throw e;
+        }
+        catch ( Exception e ){
             return false;
         }
     }

@@ -9,42 +9,60 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-// Classe che implementa il thread che periodicamente calcola le ricompense
+/**
+ * Classe che implementa il thread che periodicamente calcola le ricompense
+ */
 public class RewardCalculator extends Thread {
 
-    private int period;
-    private double percAuth;
-    private double percCur;
-    private int port;
-    private InetAddress address;
+    private int period; // Periodo ogni quanto viene effettuato il calcolo delle ricompense
+    private double percAuth; // Percentuale della ricompensa che spetta all'autore del post
+    private double percCur; // Percentuale della ricompensa che spetta ai curatori
+    private int port; // Porta su cui inviare in multicast la notifica che le ricompense sono state calcolate
+    private InetAddress address; // Indirizzo su cui inviare in multicast la notifica che le ricompense sono state calcolate
 
     private volatile boolean toStop = false; // Variabile per la terminazione del thread
-    // Puntatore al DB dei post per poter richiedere la lista
+    // Puntatore al DB dei post per poter richiedere la lista degli utenti
     private WinsomeDB database;
     
+    /**
+     * Crea un'istanza del thread che calcola le ricompense in Winsome
+     * 
+     * @param period Periodo ogni quanto il thread esegue il calcolo (in millisecondi)
+     * @param percAuth Percentuale di ricompensa che spetta all'autore del post (tra 1 e 0)
+     * @param port Porta per il multicast
+     * @param address Indirizzo per il multicast
+     * @param db Database di Winsome
+     * @throws UnknownHostException
+     * @throws NullPointerException
+     * @throws IllegalArgumentException
+     */
     public RewardCalculator(int period, double percAuth, int port, String address, WinsomeDB db)
-    throws UnknownHostException {
-    // throws RewardCalculatorConfigurationException, NullArgumentException {
-/*        
+    throws UnknownHostException, NullPointerException, IllegalArgumentException {
         if ( db == null )
-            throw new NullArgumentException();
-*/
+            throw new NullPointerException();
+
+        if ( percAuth < 0 || percAuth > 1 )
+            throw new IllegalArgumentException("La percentuale autore deve essere un numero compreso tra 0 e 1");
+
         this.period = period;
         this.percAuth = percAuth;
         this.percCur = 1 - percAuth;
         this.port = port;
         try{
             this.address = InetAddress.getByName(address);
-            /*if ( !this.address.isMulticastAddress() )
-                throw new RewardCalculatorConfigurationException();*/
+            if ( !this.address.isMulticastAddress() )
+                throw new IllegalArgumentException(address + " non è un indirizzo per il multicast");
+
         } catch ( UnknownHostException e ){
-            throw e;// new RewardCalculatorConfigurationException();
+            throw e;
         }
 
         this.database = db;
-
     }
     
+    /**
+     * Funzione che permette al thread di terminare correttamente
+     */
     public void terminate(){
         toStop = true;
         this.interrupt();
@@ -54,9 +72,9 @@ public class RewardCalculator extends Thread {
     // Così da eseguire l'algoritmo di calcolo 
     // Per poi avvisare gli utenti iscritti al multicast
     public void run(){
-        // Creo la socket UDP per il multicast
 
         try{
+            // Creo la socket UDP per il multicast
             DatagramSocket socket = new DatagramSocket();
 
             Double rewUpdate = Double.valueOf(0);
@@ -66,14 +84,17 @@ public class RewardCalculator extends Thread {
             // Raccolta delle ricompense per utente
             Map<String, Double> rewardPerUser = new HashMap<String, Double>();
 
+            // Invio sempre la stessa notifica ai client
             byte[] buf = ( new String("Nuove ricompense disponibili")).getBytes();
             DatagramPacket packet = new DatagramPacket(buf, buf.length, address, port);
 
             while ( !toStop ){
+                // Itera finché il server non invoca la terminazione
                 try{
                     // Si sospende fino alla prossima esecuzione del calcolo delle ricompense
                     Thread.sleep(period);
                 } catch ( InterruptedException e ){
+                    // Terminazione corretta del thread
                     System.out.println("REWARD: Thread interrotto, in chiusura...");
                     socket.close();
                     break;
@@ -83,7 +104,7 @@ public class RewardCalculator extends Thread {
                 rewardPerUser.clear();
 
                 // Ottengo la lista di tutti gli utenti
-                // Dovrebbe essere threadsafe perché users è concurrent e ci accedo per ottenere una copia degli utenti attualmente iscritti
+                // Questa invocazione è threadsafe perché users è concurrent e ci accedo per ottenere una copia degli utenti attualmente iscritti
                 Set<String> keySet = new HashSet<>(database.getUsers().keySet());
                                 
                 for (String user : keySet ){
@@ -93,23 +114,18 @@ public class RewardCalculator extends Thread {
                     rewardPerUser.put(user, Double.valueOf(0)); 
 
                     /*
-                    // Posso fare un for-each perché non modifico la struttura, invece che aver bisogno di un iteratore
-                    // Accedo alla struttura in modalità lettura e ci pensa Java a sincronizzare (lock striping)
+                    Posso fare un for-each perché non modifico la struttura, invece che aver bisogno di un iteratore
+                    Accedo alla struttura in modalità lettura e ci pensa Java a sincronizzare (lock striping)
 
-                    // Se nel frattempo qualche utente crea nuovi post?
-                    // Le alternative sono due, semplicemente:
-                    // - lavoro su dati "vecchi" ma le ricompense sono più giuste !!! non va bene, perché poi come aggiorno il portafoglio se ho una copia?
-                    // - lavoro su un puntatore sincronizzanto,
-                    // In entrambi i casi possono avvenire operazioni di utenti attualmente non sincronizzati
-                    // Potrei risolvere con una readlock su tutta la struttura
-                    
-                    // E INVECE LASCIO LA CONCORRENZA IN MANO ALLE API JAVA DELLA CONCURRENT HASHMAP E MI FIDO DELL'ITERATORE
-                    // for each per la lettura, iterator per la scrittura
-
-                    // Lavoro su una copia, non ho necessità di sincronizzare
+                    Se nel frattempo qualche utente crea nuovi post?
+                    Le alternative sono due, semplicemente:
+                    - lavoro su dati "vecchi" ma le ricompense sono più giuste [EDIT] non va bene, perché poi come aggiorno il portafoglio se ho una copia?
+                    - lavoro su un puntatore sincronizzanto,
+                    In entrambi i casi possono avvenire operazioni di utenti attualmente non sincronizzati, quindi si presenta comunque una race condition
+                    Potrei risolvere con una readwritelock su tutta la struttura del database o degli utenti
                     */
 
-                    database.lock.readLock().lock(); try { // Per ogni utente accedo in lettura ai suoi post, evito che vengano rimossi nel frattempo
+                    database.lock.readLock().lock(); try { // Per ogni utente accedo in lettura al database
                     // TODO io qui modifico post.
                     // Per il thread del backup è un problema.
                     // Sto bloccando in lettura, quindi il thread del backup può accedere a post e leggere dati incostistenti

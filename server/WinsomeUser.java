@@ -13,8 +13,7 @@ import server.bcrypt.src.BCrypt;
 // Accederebbero prima al DB di user, potrebbe capitare di dover fare due operazioni contemporaneamente? Perché no...
 // Potrei cambiare i Set con code sincronizzate, logged con AtomicInteger?
 /**
- * Struttura che rappresenta un utente winsome
- * Nessun metodo potrà essere invocato direttamente dal client
+ * Classe che rappresenta un utente all'interno di Winsome
 */
 public class WinsomeUser implements Serializable {
         

@@ -4,6 +4,8 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.Set;
 
+import server.WinsomeException;
+
 public interface RMIServiceInterface extends Remote {
 
     /**
@@ -16,7 +18,7 @@ public interface RMIServiceInterface extends Remote {
      * @throws RemoteException
      */
     public abstract boolean register(String username, String password, Set<String> tags)
-    throws RemoteException;
+    throws RemoteException, WinsomeException;
 
     public abstract Set<String> registerForCallback( ClientNotifyInterface user)
     throws RemoteException;
