@@ -17,7 +17,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * ovvero raccoglie tutti i post e gli utenti
  */
 public class WinsomeDB implements Serializable {
-    private final boolean DEBUG = true;
+    private final boolean DEBUG = false;
 
     private Map<Integer, WinsomePost> posts;
     private AtomicInteger newPost; // Non è necessario che sia atomic perché solo il worker crea e cancella post (quindi non si verificano race condition)

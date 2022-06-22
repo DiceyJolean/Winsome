@@ -44,7 +44,7 @@ public class ClientNotify extends UnicastRemoteObject implements ClientNotifyInt
         String follower = new String(token[1]);
 
         if ( event.equals(FOLLOW)){
-            System.out.println("RMIService: Un utente ha iniziato a seguirti");
+            System.out.println("Un utente ha iniziato a seguirti");
             System.out.flush();
             synchronized ( followers ){
                 followers.add(follower);
@@ -52,7 +52,7 @@ public class ClientNotify extends UnicastRemoteObject implements ClientNotifyInt
         }
 
         if ( event.equals(UNFOLLOW)){
-            System.out.println("RMIService: Un utente ha smesso di seguirti");
+            System.out.println("Un utente ha smesso di seguirti");
             System.out.flush();
             synchronized ( followers ){
                 followers.remove(follower);

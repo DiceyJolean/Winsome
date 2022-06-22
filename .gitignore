@@ -5,3 +5,5 @@ shared/*.class
 race condition
 database.json
 todo
+*.jar
+database.json

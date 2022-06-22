@@ -1,22 +1,27 @@
 {
   "vale": {
     "nickname": "vale",
-    "psw": "$2a$10$o9OGrkZFoqg74GPP58rPIO3PuMvtdXd4bdLOlT1qIBk3qULJEKWWi",
-    "follower": [
+    "psw": "$2a$10$zciSERy/y46rDj0wYedNUeCKb.NXSr7DiHA4c6L/4kgS43uIwdsRy",
+    "follower": [],
+    "following": [
       "erica"
     ],
-    "following": [],
     "loggedIn": false,
     "tags": [
-      "luna"
+      "due"
     ],
     "postRewinned": [],
     "blog": [],
-    "wallet": []
+    "wallet": [
+      {
+        "date": "Jun 22, 2022, 6:34:42 PM",
+        "value": 0.027725885569806152
+      }
+    ]
   },
   "chiara": {
     "nickname": "chiara",
-    "psw": "$2a$10$jrTdQI/GOsREQP3amn.ZC.ypZplUGGuUwAed0Z0ctghGslrkOQZKS",
+    "psw": "$2a$10$EcJCL8N1ydqamyZJDjRiUuMr1KAzpLgYC7lg1C64.f89qkBzEhBIq",
     "follower": [
       "erica"
     ],
@@ -25,144 +30,43 @@
     ],
     "loggedIn": false,
     "tags": [
-      "sole"
+      "un"
     ],
-    "postRewinned": [
-      1
-    ],
-    "blog": [
-      {
-        "idPost": 2,
-        "title": "wpp",
-        "author": "chiara",
-        "content": "post di chiara",
-        "newVotes": {},
-        "oldVotes": {
-          "erica": "LIKE"
-        },
-        "newComments": {},
-        "oldComments": {
-          "erica": [
-            "wuu"
-          ]
-        },
-        "rewinners": [],
-        "nIterations": 8
-      }
-    ],
+    "postRewinned": [],
+    "blog": [],
     "wallet": [
       {
-        "date": "Jun 16, 2022, 5:24:09 PM",
-        "value": 0.06931471392451538
-      },
-      {
-        "date": "Jun 16, 2022, 5:24:39 PM",
-        "value": 0.04620980928301025
-      },
-      {
-        "date": "Jun 17, 2022, 3:18:28 PM",
-        "value": 0.5545177527109145
-      },
-      {
-        "date": "Jun 17, 2022, 3:18:58 PM",
-        "value": 0.27725887635545726
-      },
-      {
-        "date": "Jun 17, 2022, 3:19:58 PM",
-        "value": 0.13862942784903076
-      },
-      {
-        "date": "Jun 17, 2022, 4:23:06 PM",
-        "value": 0.005134423253667806
+        "date": "Jun 22, 2022, 6:34:12 PM",
+        "value": 0.07970843491923091
       }
     ]
   },
   "erica": {
     "nickname": "erica",
-    "psw": "$2a$10$Sc.HwJoIZe.TULEbEIx3PeTadMGxe4kg3WGKQDOaX5ZC7FJZETzXq",
+    "psw": "$2a$10$BOx0EpFJ4iBxdazD4FKUxuL5Mvk8L/i2SF8SKZq6gB12r6/RATOEy",
     "follower": [
+      "vale",
       "chiara"
     ],
     "following": [
-      "vale",
       "chiara"
     ],
     "loggedIn": false,
     "tags": [
-      "sole",
-      "gatti",
-      "luna"
+      "due",
+      "tre",
+      "un"
     ],
     "postRewinned": [],
-    "blog": [
-      {
-        "idPost": 1,
-        "title": "titolo_del_post",
-        "author": "erica",
-        "content": "questo è il primo post di erica",
-        "newVotes": {},
-        "oldVotes": {
-          "chiara": "LIKE"
-        },
-        "newComments": {},
-        "oldComments": {
-          "chiara": [
-            "che bel post",
-            "wooo"
-          ]
-        },
-        "rewinners": [
-          "chiara"
-        ],
-        "nIterations": 2
-      },
-      {
-        "idPost": 3,
-        "title": "terzo",
-        "author": "erica",
-        "content": "post",
-        "newVotes": {
-          "chiara": "LIKE"
-        },
-        "oldVotes": {},
-        "newComments": {},
-        "oldComments": {
-          "chiara": [
-            "viva"
-          ]
-        },
-        "rewinners": [],
-        "nIterations": 5
-      },
-      {
-        "idPost": 4,
-        "title": "lala",
-        "author": "erica",
-        "content": "uhuhhh",
-        "newVotes": {},
-        "oldVotes": {},
-        "newComments": {},
-        "oldComments": {},
-        "rewinners": [],
-        "nIterations": 0
-      }
-    ],
+    "blog": [],
     "wallet": [
       {
-        "date": "Jun 16, 2022, 5:24:09 PM",
-        "value": 0.27725887635545726
+        "date": "Jun 22, 2022, 6:34:12 PM",
+        "value": 0.3188337634318898
       },
       {
-        "date": "Jun 16, 2022, 5:24:39 PM",
-        "value": 0.18483925090363817
-      },
-      {
-        "date": "Jun 17, 2022, 3:19:58 PM",
-        "value": 0.5545177527109145
-      },
-      {
-        "date": "Jun 17, 2022, 4:23:06 PM",
-        "value": 0.020537694544848686
+        "date": "Jun 22, 2022, 6:34:42 PM",
+        "value": 0.1109035505421829
       }
     ]
   }
