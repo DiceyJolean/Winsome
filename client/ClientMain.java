@@ -18,51 +18,45 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import server.WinsomeException;
 import shared.*;
-/**
- * Il parser potrebbe essere un thread avviato dal client dopo aver
- * settato i parametri di configurazione ed essersi collegato.
- * Il thread parser chiama e quindi esegue le funzioni dell'interfaccia client,
- * una per volta perché è l'unico thread del client.
- * Che poi in realtà diventa il main.
- * Allora perché non lasciar fare direttamente tutto al client?
- */
 
 /* 
-    Legge i comandi da terminale e trasferisce le richieste al client
-    Fa controlli sulla validità della richiesta prima di inoltrarla al client
+    Legge i comandi da terminale e trasferisce le richieste al server
+    Fa controlli sulla validità della richiesta prima di inoltrarla
 */
 public class ClientMain {
     private static final boolean DEBUG = false;
     private static final int MINTAGS = 1;
     private static final int MAXTAGS = 5;
+    private static final int SUCCESS = 0;
+    private static final int FAILURE = 1;
 
+    // Variabili per connettersi a Winsome
     private static Socket socket = null;
     private static int rmiPort = 0;
     private static String rmiServiceName;
+    private static RMIServiceInterface serviceRMI = null;
 
     private static String thisUser = ""; // Nick dell'utente che si logga utilizzando questo client
-    private static boolean logged = false;
-    private static BufferedReader in = null;
-    private static PrintWriter out = null;
-    private static Set<String> followers = null; // TODO followers va sincronizzata tra callback e server
-    private static RMIServiceInterface serviceRMI = null;
-    private static RewardUpdater rewardUpdater = null;
-    private static ClientNotify stub = null;
+    private static boolean logged = false; // Flag che indica se un utente è attualmente connesso con questo client
+    private static BufferedReader in = null; // Stream per leggere dal server
+    private static PrintWriter out = null; // Stream per scrivere al server
+    private static Set<String> followers = null; // Follower dell'utente attualmente loggato
+    private static RewardUpdater rewardUpdater = null; // Thread che riceve la notifica del calcolo delle ricompense
+    private static ClientNotify stub = null; // Classe che aggiorna i follower quando riceve la notifica
 
     public static void main(String[] args){
         // Leggo i parametri per la configurazione iniziale dal file passato come argomento
         File configFile = new File(args[0]);
         if ( !configFile.exists() || !configFile.isFile() ){
-            // TODO terminazione
-            System.exit(1);
+            System.err.println("Impossibile trovare il file con i parametri di configurazione");
+            System.exit(FAILURE);
         }
 
-        int tcpPort = 0, connectionAttempt = 0;
-        long retryTime = 0;
+        int tcpPort = -1, connectionAttempt = -1;
+        long retryTime = -1;
 
-        // Lettura dei parametri iniziali
+        // Lettura dei parametri di configurazione iniziali
         try (
             BufferedReader input = new BufferedReader(new FileReader(configFile))
         ){
@@ -73,13 +67,13 @@ public class ClientMain {
                     case "TCP_PORT":{
                         tcpPort = Integer.parseInt(token[1]);
                         if ( tcpPort < 1024 || tcpPort > 65535 )
-                            System.exit(1);
+                            System.exit(FAILURE);
                         break;
                     }
                     case "RMI_PORT":{
                         rmiPort = Integer.parseInt(token[1]);
                         if ( rmiPort < 1024 || rmiPort > 65535 )
-                            System.exit(1);
+                            System.exit(FAILURE);
                         break;
                     }
                     case "RMI_NAME_SERVICE":{
@@ -89,13 +83,13 @@ public class ClientMain {
                     case "CONNECTION_ATTEMPT":{
                         connectionAttempt = Integer.parseInt(token[1]);
                         if ( connectionAttempt < 1 )
-                            System.exit(1);
+                            System.exit(FAILURE);
                         break;
                     }
                     case "RETRY_TIME":{
                         retryTime = Long.parseLong(token[1]);
                         if ( retryTime < 1 )
-                            System.exit(1);
+                            System.exit(FAILURE);
                         break;
                     }
                     default:{
@@ -103,10 +97,13 @@ public class ClientMain {
                     }
                 }
             }
+            if ( rmiPort < 0 || rmiServiceName == null || tcpPort < 0 || retryTime < 0 || connectionAttempt < 0 ){
+                System.err.println("Errore nei parametri di configurazione, terminazione");
+                System.exit(FAILURE);
+            }
         } catch ( Exception e ){
-            // TODO terminazione
             e.getMessage();
-            System.exit(1);
+            System.exit(FAILURE);
         }
 
         // Apertura della connessione TCP con il server
@@ -114,6 +111,8 @@ public class ClientMain {
         try{
             address = InetAddress.getLocalHost();
             int i = 0;
+            // Il client tenta di connettersi al server fino a un massimo di connectionAttempt tentativi
+            // Fra un tentativo di connessione e l'altro attende un tempo di retryTime millisecondi
             while ( socket == null ){
                 if ( socket != null )
                     break;
@@ -125,38 +124,39 @@ public class ClientMain {
                         i++;
                     else {
                         System.err.println("Connessione con il server non stabilita, terminazione");
-                        System.exit(1);
+                        System.exit(FAILURE);
                     }
                 }
                     try{
                         Thread.sleep(retryTime);
                     } catch ( InterruptedException e ){
                         e.printStackTrace();
-                        System.exit(1);
+                        System.exit(FAILURE);
                     }
                 
             }
             if ( socket == null ){
                 System.err.println("Connessione con il server non stabilita, terminazione");
-                System.exit(1);
+                System.exit(FAILURE);
             }
             System.err.println("Connessione con il server stabilita con successo");
             out = new PrintWriter(socket.getOutputStream(), true); // Flush automatico
-            in = new BufferedReader( new InputStreamReader( socket.getInputStream() ));            
+            in = new BufferedReader( new InputStreamReader( socket.getInputStream() ));      
+
         } catch ( Exception e ){
             e.printStackTrace();
-            System.exit(1);
+            System.exit(FAILURE);
         }
 
         // Parsing delle richieste da riga di comando
         try (
             BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
         ){
-            // Ciclo per parsare le richieste in ingresso
+            // Ciclo per parsare le richieste in ingresso, il client termina quando legge "quit"
             for (String line = input.readLine(); !line.equals("quit"); line = input.readLine()){
                 String[] req = line.split(" ");
                 
-                // Controllo soltanto i parametri in ingresso, il resto viene svolto all'interno del metodo corrispondente
+                // Controllo soltanto il numero di parametri in ingresso, il resto viene svolto all'interno del metodo corrispondente
                 switch ( req[0] ){
                     case "register":{
                         // Mi aspetto da uno a cinque tag
@@ -171,14 +171,7 @@ public class ClientMain {
                         for ( int i = 3; i < req.length; i++ )
                             tags.add(req[i]);
 
-                        if ( register(nickname, psw, tags) ){
-                            if ( DEBUG ) System.out.println("CLIENT: Registrazione a Winsome avvenuta con successo");
-                        }
-                        else {
-                            // TODO errore durante la fase di registrazione
-                            System.err.println("CLIENT: Errore durante la fase di registrazione");
-                        }
-                        
+                        register(nickname, psw, tags);
                         break;
                     }
                     case "login":{
@@ -186,26 +179,10 @@ public class ClientMain {
                             System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
-                        /*  Il client viene "associato" a un utente al momento del login
-                            Più utenti possono registrarsi a Winsome sullo stesso client
-                        */
-                        /*  TODO controllare che sia coerente con il resto dell'implementazione
-                            Dovrebbe esserlo, infatti la register aggiunge un nuovo utente a Winsome
-                            ma solo la login lo registra al servizio di callback
-                        */
-
                         thisUser = new String(req[1]);
                         String psw = new String(req[2]);
                         
-                        try{
-                            if ( !login(thisUser, psw) ){
-                                // TODO errore nel login
-                                System.err.println("CLIENT: Errore durante la fase di login");
-                            }
-                        } catch ( Exception e ){
-                            e.printStackTrace();
-                            System.exit(1);
-                        }
+                        login(thisUser, psw);
                         break;
                     }
                     case "logout":{
@@ -213,22 +190,7 @@ public class ClientMain {
                             System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
-                        // Qui si effettuano solo i controlli sui dati in ingresso
-                        /*
-                        Questa roba spetta alla funzione relatiiva
-                        if ( thisUser == null ){
-                            // TODO messaggio di errore
-                            break;
-                        }
-                        */
-                        if ( logout() ){
-                            if ( DEBUG ) System.out.println("CLIENT: logout effettuato con successo");
-                            
-                        }
-                        else {
-                            // TODO errore nel logout
-                            System.err.println("CLIENT: Errore durante la fase di logout");
-                        }
+                        logout();
                         break;
                     }
                     case "post":{
@@ -236,7 +198,7 @@ public class ClientMain {
                             System.err.println("Richiesta formulata con sintassi errata, digitare help per visualizzare la forma corretta");
                             break;
                         }
-
+                        // Il titolo non deve contenere spazi
                         String title = new String(req[1]);
                         StringBuilder content = new StringBuilder(req[2]);
                         for ( int i = 3; i < req.length; i++ )
@@ -436,17 +398,15 @@ public class ClientMain {
             System.out.println("Terminazione in corso...");
             if ( logged ) logout();
             socket.close();
-        } catch ( IOException e ){
-            System.err.println(e.getMessage());
-            System.exit(1);
         } catch ( Exception e ){
-            System.err.println("Errore fatale, terminazione");
-            System.exit(1);
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
         System.out.println("Terminazione avvenuta con successo");
-        System.exit(0);
+        System.exit(SUCCESS);
     }
 
+    // Formalizza la richiesta per renderla leggibile al server
     private static String toRequest(ArrayList<String> args){
         String req = "";
         for ( String elem : args )
@@ -465,30 +425,26 @@ public class ClientMain {
             
             if ( DEBUG ) System.out.println("CLIENT: Mi iscrivo a Winsome");
 
-            return serviceRMI.register(username, password, tags);
-        } catch ( RemoteException e ){
-            // Errore del client (non dell'utente), è ragionevole terminare TODO
-            return false;
-        } catch ( NotBoundException e ){
-            // Errore del server (non dell'utente), è ragionevole terminare TODO
-            return false;
-        }
-        catch ( WinsomeException e ){
-            e.getMessage();
-            return false;
+            String reply = serviceRMI.register(username, password, tags);
+            if ( !reply.equals(Communication.Success.toString()) ){
+                System.err.println("REGISTER fallita: " + reply);
+                return false;
+            }
         }
         catch ( Exception e ){
-            e.printStackTrace();
-            return false;
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
+        System.out.println("Registrazione a Winsome eseguita con successo");
+        return true;
     }
 
     public static boolean login(String username, String password){
         System.out.println("LOGIN\t username: " + username + ", password: " + password);
         if ( thisUser == null || logged ){
             // Questo utente ha già effettuato il login (con questo client)
-            System.out.println("LOGIN fallita: è già stato effettuato il login con l'utente " + thisUser + " con questo client");
+            System.out.println(Operation.LOGIN + " fallita: è già stato effettuato il login con l'utente " + thisUser + " con questo client");
             return false;
         }
 
@@ -502,7 +458,7 @@ public class ClientMain {
             logged = reply.equals(Communication.Success.toString()) ? true : false;
             
             if ( !logged ){
-                System.out.println("LOGIN fallita: " + reply);
+                System.out.println(Operation.LOGIN + " fallita: " + reply);
                 return false;
             }
 
@@ -518,7 +474,7 @@ public class ClientMain {
                 t.start();
             } catch ( Exception e ){
                 System.err.println("Errore durante la connessione al servizio di multicast per le ricompense " + e.getMessage());
-                System.exit(1);
+                System.exit(FAILURE);
             }
 
             // se il login ha avuto successo, il client si registra al servizio di callback tramite RMI
@@ -538,24 +494,25 @@ public class ClientMain {
                 if ( DEBUG ) System.out.println("CLIENT: Mi registro al servizio di notifica");
                 // if ( DEBUG ) System.out.println("CLIENT: I miei follower sono: " + followers.toString());
             } catch ( NotBoundException e ){
-                // Errore del server (non dell'utente), è ragionevole terminare TODO
-                return false;
+                System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+                System.exit(FAILURE);
             } catch ( RemoteException e ){
-                e.printStackTrace();
-                return false;
+                System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+                System.exit(FAILURE);
             }
-        } catch ( IOException e ){
-            e.printStackTrace();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
+        System.out.println(Operation.LOGIN + " eseguita con successo");
         return true;
     }
 
     public static boolean logout(){
         if ( !logged || thisUser.equals("") ){
             // Questo utente non aveva effettuato il login (con questo client)
-            System.err.println("LOGOUT fallita: Nessun utente si era loggato con questo client");
+            System.err.println(Operation.LOGOUT + " fallita: Nessun utente si era loggato con questo client");
             return false;
         }
 
@@ -569,7 +526,7 @@ public class ClientMain {
             logged =  reply.equals(Communication.Success.toString()) ? false : true;
             
             if ( logged ){
-                System.out.println("Logout fallita: " + reply);
+                System.out.println(Operation.LOGOUT + " fallita: " + reply);
                 return false;
             }
             thisUser = null;
@@ -581,17 +538,15 @@ public class ClientMain {
                 serviceRMI.unregisterForCallback(stub);
                 if ( DEBUG ) System.out.println("CLIENT: Mi cancello dal servizio di notifica");
             } catch (RemoteException e ){
-                if ( DEBUG ) e.printStackTrace();
-                else e.getMessage();
-                return false;
+                System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+                System.exit(FAILURE);
             }
-        } catch ( IOException e ){
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
-        System.err.println("LOGOUT eseguita con successo");
+        System.err.println(Operation.LOGOUT + " eseguita con successo");
         return true;
     }
 
@@ -603,7 +558,7 @@ public class ClientMain {
 
             String reply = in.readLine();
             if ( !reply.equals(Communication.Success.toString()) ){
-                System.err.println("LIST_USERS fallita: " + reply);
+                System.err.println(Operation.LIST_USERS + " fallita: " + reply);
                 in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
                 return false;
             }
@@ -611,16 +566,18 @@ public class ClientMain {
             // Stampo a video gli utenti con almeno un tag in comune a thisUser
             System.out.println(in.readLine());
 
-        } catch ( IOException e ){
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
         return true;
     }
 
     public static boolean listFollowers(){
+        if ( !logged )
+            System.out.println("Per visualizzare i proprio follower è necessario effettuare il login");
+
         synchronized ( followers ){
             if ( followers == null || followers.isEmpty() )
                 System.out.println("L'utente non ha follower");
@@ -647,12 +604,9 @@ public class ClientMain {
             // Stampo a video la lista degli utenti che thisUser segue
             System.out.println(in.readLine());
 
-        } catch ( IOException e ){
-            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
-            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
         return true;
@@ -667,19 +621,16 @@ public class ClientMain {
             in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
 
             if ( !reply.equals(Communication.Success.toString()) ){
-                System.err.println("FOLLOW_USER fallita: " + reply);
+                System.err.println(Operation.FOLLOW_USER + " fallita: " + reply);
                 return false;
             }
 
-        } catch ( IOException e ){
-            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
-            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
-        System.out.println("FOLLOW_USER eseguita con successo");
+        System.out.println(Operation.FOLLOW_USER + " eseguita con successo");
         return true;
     }
 
@@ -692,19 +643,16 @@ public class ClientMain {
             in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
 
             if ( !reply.equals(Communication.Success.toString()) ){
-                System.err.println("UNFOLLOW_USER fallita: " + reply);
+                System.err.println(Operation.UNFOLLOW_USER + " fallita: " + reply);
                 return false;
             }
 
-        } catch ( IOException e ){
-            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
-            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
-        System.out.println("UNFOLLOW_USER eseguita con successo");
+        System.out.println(Operation.UNFOLLOW_USER + " eseguita con successo");
         return true;
     }
 
@@ -715,7 +663,7 @@ public class ClientMain {
             out.println(request);
             String reply = in.readLine();
             if ( !reply.equals(Communication.Success.toString()) ){
-                System.err.println("VIEW_BLOG fallita: " + reply);
+                System.err.println(Operation.VIEW_BLOG + " fallita: " + reply);
                 in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
                 return false;
             }
@@ -727,10 +675,9 @@ public class ClientMain {
             // Stampo a video il blog di thisUser
             System.out.println(blog);
 
-        } catch ( IOException e ){
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
         return true;
@@ -745,19 +692,16 @@ public class ClientMain {
             in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
 
             if ( !reply.equals(Communication.Success.toString()) ){
-                System.err.println("CREATE_POST fallita: " + reply);
+                System.err.println(Operation.CREATE_POST + " fallita: " + reply);
                 return false;
             }
 
-        } catch ( IOException e ){
-            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
-            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
-        System.out.println("CREATE_POST eseguita con successo");
+        System.out.println(Operation.CREATE_POST + " eseguita con successo");
         return true;
     }
 
@@ -780,13 +724,9 @@ public class ClientMain {
             // Stampo a video il feed di thisUser
             System.out.println(feed);
 
-        } catch ( IOException e ){
-            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
-            // TODO gestire anche altre eccezioni, come il caso NullPointerException: se il server crasha durante la risposta reply è null
-            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
         return true;
@@ -812,12 +752,9 @@ public class ClientMain {
             // Stampo a video il post richiesto
             System.out.println(post);
 
-        } catch ( IOException e ){
-            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
-            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
         return true;
@@ -836,12 +773,9 @@ public class ClientMain {
                 return false;
             }
 
-        } catch ( IOException e ){
-            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
-            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
         System.out.println(Operation.DELETE_POST + " eseguita con successo");
@@ -861,12 +795,9 @@ public class ClientMain {
                 return false;
             }
 
-        } catch ( IOException e ){
-            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
-            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
         System.out.println(Operation.REWIN_POST + " eseguita con successo");
@@ -886,12 +817,9 @@ public class ClientMain {
                 return false;
             }
 
-        } catch ( IOException e ){
-            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
-            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
         System.out.println(Operation.RATE_POST + " eseguita con successo");
@@ -911,12 +839,9 @@ public class ClientMain {
                 return false;
             }
 
-        } catch ( IOException e ){
-            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
-            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
         System.out.println(Operation.ADD_COMMENT + " eseguita con successo");
@@ -943,12 +868,9 @@ public class ClientMain {
             // Stampo a video il wallet di thisUser
             System.out.println(wallet);
 
-        } catch ( IOException e ){
-            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
-            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
         return true;
@@ -974,12 +896,9 @@ public class ClientMain {
             // Stampo a video il wallet di thisUser
             System.out.println(walletbtc);
 
-        } catch ( IOException e ){
-            // TODO in tutti questi casi di IOException penso sia meglio far terminare il client
-            // perché si potrebbero avere inconsistenze con i messaggi inviati dal server
-            if ( DEBUG ) e.printStackTrace();
-            else e.getMessage();
-            return false;
+        } catch ( IOException | NullPointerException e ){
+            System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
+            System.exit(FAILURE);
         }
 
         return true;

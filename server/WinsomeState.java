@@ -11,13 +11,15 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
-// Classe che si occupa del caricamento e del salvataggio dello stato di Winsome
+/**
+ *  Classe che si occupa del caricamento e del salvataggio periodico dello stato di Winsome
+ */
 public class WinsomeState extends Thread {
-    private WinsomeDB db;
-    private File file;
-    private String filename;
-    private long period;
-    private volatile boolean toStop = false;
+    private WinsomeDB db; // Puntatore al database di Winsome
+    private File file; // File dove recuperare e salvare lo stato di Winsome
+    private String filename; // Nome del file dove recuperare e salvare lo stato di Winsome
+    private long period; // Periodo ogni quanto effettuare il salvataggio dello stato di Winsome
+    private volatile boolean toStop = false; // Variabile per la terminazione del thread
 
     public WinsomeState(String filename, WinsomeDB db, long period)
     throws IOException {
@@ -40,7 +42,7 @@ public class WinsomeState extends Thread {
     public void run(){
         try{
             while ( !toStop ){
-            
+                // Finché il thread non viene interrotto, periodicamente salva lo stato di Winsome
                 Thread.sleep(period);
 
                 // Salvo lo stato attuale del Database su un nuovo file
@@ -70,7 +72,7 @@ public class WinsomeState extends Thread {
         try(
             PrintWriter out = new PrintWriter(uptadedDB);
         ){
-            uptadedDB.createNewFile();
+            uptadedDB.createNewFile(); // TODO serve?
             out.write(json);
         } catch ( IOException e ){
             e.printStackTrace();
@@ -87,7 +89,7 @@ public class WinsomeState extends Thread {
         if ( file.length() != 0 ){
             try{
                 Gson gson = new Gson();
-                // TODO da java 11
+                // Il meodo readString è presente da java 11
                 String tmp = Files.readString(file.toPath());
 
                 Type gsonType = new TypeToken<Map<String, WinsomeUser>>(){}.getType();

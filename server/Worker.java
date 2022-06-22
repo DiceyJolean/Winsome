@@ -19,14 +19,16 @@ import java.util.Set;
 import shared.*;
 
 public class Worker extends Thread {
-    private final static String randomURL = "https://www.random.org/decimal-fractions/?num=1&dec=4&col=1&format=plain&rnd=new";
-    private volatile boolean toStop = false;
-    private int KILOBYTE = 1024;
-    private static boolean DEBUG = false;
-    private String multicastAddress;
-    private int multicastPort;
-    private WinsomeDB database;
-    private RMIServiceInterface stub;
+    private final static String randomURL = "https://www.random.org/decimal-fractions/?num=1&dec=4&col=1&format=plain&rnd=new"; // URL a cui connettersi per recuperare un numero casuale
+    private final int KILOBYTE = 1024;
+    private final static boolean DEBUG = false;
+    
+    private volatile boolean toStop = false; // Variabile per la terminazione del thread
+    
+    private String multicastAddress; // Indirizzo per il multicast da comunicare al client al momento del login
+    private int multicastPort; // Porta per il multicast da comunicare al client al momento del login
+    private WinsomeDB database; // Puntatore al database di Winsome
+    private RMIServiceInterface stub; // Puntatore allo stub per il servizio RMI
 
     private Selector selector;
 
@@ -43,6 +45,11 @@ public class Worker extends Thread {
         selector.wakeup();
     }
 
+    /**
+     * Ottiene un decimale random collegandosi all'URL
+     * 
+     * @return un decimale random
+     */
     private double getRandom(){
         double random = 0.0;
         try{
@@ -52,19 +59,22 @@ public class Worker extends Thread {
             random = Double.parseDouble(buf.readLine());
 
         } catch ( NumberFormatException e ){
-            // TODO se viene sollevata un'eccezione qui dentro, ha senso terminare il server
             e.printStackTrace();
         } catch ( IOException e ){
-            // TODO se viene sollevata un'eccezione qui dentro, ha senso terminare il server
             e.printStackTrace();
         } catch ( Exception e ){
-            // TODO se viene sollevata un'eccezione qui dentro, ha senso terminare il server
             e.printStackTrace();
         }
         
         return random;
     }
 
+    /**
+     * Restituisce una stringa che indica per ogni post il titolo, l'autore e l'identificativo
+     * 
+     * @param tmp L'insieme dei post
+     * @return Una stringa che indica per ogni post il titolo, l'autore e l'identificativo
+     */
     private String toSimplePost(Set<WinsomePost> tmp){
         StringBuilder s = new StringBuilder();
 
@@ -77,6 +87,13 @@ public class Worker extends Thread {
         return s.toString();
     }
 
+    // Funzione che rappresenta il cuore di Winsome
+    /**
+     * Riceve una richiesta da un client e la soddisfa restituendo l'esito
+     * 
+     * @param request Richiesta client formalizzata
+     * @return L'esito dell'operazione formalizzato
+     */
     private String processRequest(String request){
         String reply = ""; // Messaggio di risposta da inviare al client
         String description = Communication.Success.toString(); // Descrizione dell'esito dell'operazione
@@ -84,35 +101,34 @@ public class Worker extends Thread {
         
         // La richiesta è nel formato OPERATION;USERNAME;ATTRIBUTI
         String[] token = request.split(";");
-
         Operation operation = Operation.valueOf(new String(token[0]));
-        String user = new String(token[1]);
+        String username = new String(token[1]);
 
-        if ( DEBUG ) System.out.println("WORKER: Processo la richiesta di " + operation + " dell'utente " + user);
+        if ( DEBUG ) System.out.println("WORKER: Processo la richiesta di " + operation + " dell'utente " + username);
 
         try{
             switch ( operation ){
                 case ADD_COMMENT:{
                     // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.addComment(user, Integer.parseInt(token[2]), token[3]) ? Communication.Success.toString() : Communication.Failure.toString();
+                    description = database.addComment(username, Integer.parseInt(token[2]), token[3]) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case CREATE_POST:{
                     // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.createPost(user, token[2], token[3]) ? Communication.Success.toString() : Communication.Failure.toString();
+                    description = database.createPost(username, token[2], token[3]) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case DELETE_POST:{
-                    description = database.deletePost(user, Integer.parseInt(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
+                    description = database.deletePost(username, Integer.parseInt(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case FOLLOW_USER:{
-                    // user inizia a seguire
+                    // username inizia a seguire
                     // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    if ( database.followUser(user, token[2]) ){
+                    if ( database.followUser(username, token[2]) ){
                         description = Communication.Success.toString();
-                        // notifico all'utente che viene seguito che user ha iniziato a seguirlo
-                        stub.doCallback(token[2], "FOLLOW;" + user +";");
+                        // notifico all'utente che viene seguito che username ha iniziato a seguirlo
+                        stub.doCallback(token[2], "FOLLOW;" + username +";");
                     }
                     else 
                         description = Communication.Failure.toString();
@@ -122,14 +138,15 @@ public class Worker extends Thread {
                 case GET_WALLET:{
                     attr = "";
                     double wallet = 0;
-                    Queue<WinsomeWallet> queue = database.getWallet(user);
+                    Queue<WinsomeWallet> queue = database.getWallet(username);
                     if ( queue == null || queue.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
                     }
+                    // Salvo lo storico del portafoglio in formato leggibile
                     for ( WinsomeWallet w : queue ){
-                        attr = attr + w.getKey() + " " + w.getValue() + "\n";
-                        wallet = wallet + w.getValue();
+                        attr = attr + w.getDate() + " " + w.getValue() + "\n";
+                        wallet = wallet + w.getValue(); // Aggiorno il valore complessivo del portafoglio
                     }
 
                     attr += "Valore del portafoglio : " + wallet + "\n;";
@@ -137,7 +154,7 @@ public class Worker extends Thread {
                     break;
                 }
                 case GET_WALLET_BITCOIN:{
-                    Queue<WinsomeWallet> queue = database.getWallet(user);
+                    Queue<WinsomeWallet> queue = database.getWallet(username);
                     if ( queue == null || queue.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
@@ -145,9 +162,10 @@ public class Worker extends Thread {
                     double n = getRandom();
                     double walletbtc = 0;
                     attr = "";
+                    // Salvo lo storico del portafoglio in formato leggibile
                     for ( WinsomeWallet w : queue ){
-                        attr = attr + w.getKey() + " " + w.getValue()*n + ")\n";
-                        walletbtc = walletbtc + w.getValue()*n;
+                        attr = attr + w.getDate() + " " + w.getValue()*n + ")\n";
+                        walletbtc = walletbtc + w.getValue()*n; // Aggiorno il valore complessivo del portafoglio in bitcoin
                     }
 
                     attr += "Valore del portafoglio in bitcoin : " + walletbtc + " (Tasso di conversione: " + n + "\n;";
@@ -155,7 +173,7 @@ public class Worker extends Thread {
                     break;
                 }
                 case LIST_FOLLOWING:{
-                    Set<String> following = database.listFollowing(user);
+                    Set<String> following = database.listFollowing(username);
                     if ( following == null || following.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
@@ -164,7 +182,7 @@ public class Worker extends Thread {
                     break;
                 }
                 case LIST_USERS:{
-                    Set<String> users = database.listUsers(user);
+                    Set<String> users = database.listUsers(username);
                     if ( users == null || users.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
@@ -174,9 +192,9 @@ public class Worker extends Thread {
                 }
                 case LOGIN:{
                     // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    if ( database.login(user, new String(token[2])) ){
+                    if ( database.login(username, new String(token[2])) ){
                         description = Communication.Success.toString();
-                        attr = multicastAddress + "\n" + multicastPort;
+                        attr = multicastAddress + "\n" + multicastPort; // Invio l'indirizzo e la porta per permettere al client di registrarsi al servizio di multicast
                     }
                     else
                         description = Communication.Failure.toString();
@@ -185,21 +203,21 @@ public class Worker extends Thread {
                 }
                 case LOGOUT:{
                     // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.logout(user) ? Communication.Success.toString() : Communication.Failure.toString();
+                    description = database.logout(username) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case RATE_POST:{
                     // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.ratePost(user, Integer.parseInt(token[2]), Integer.parseInt(token[3])) ? Communication.Success.toString() : Communication.Failure.toString();
+                    description = database.ratePost(username, Integer.parseInt(token[2]), Integer.parseInt(token[3])) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case REWIN_POST:{
                     // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    description = database.rewinPost(user, Integer.parseInt(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
+                    description = database.rewinPost(username, Integer.parseInt(token[2])) ? Communication.Success.toString() : Communication.Failure.toString();
                     break;
                 }
                 case SHOW_FEED:{
-                    Set<WinsomePost> tmp = database.showFeed(user, true);
+                    Set<WinsomePost> tmp = database.showFeed(username, true);
                     if ( tmp == null || tmp.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
@@ -217,10 +235,10 @@ public class Worker extends Thread {
                 case UNFOLLOW_USER:{
                     // user smette di seguire
                     // l'operazione restituisce true o solleva eccezione, ma gestisco comunque un fallimento per future modifiche
-                    if ( database.unfollowUser(user, token[2]) ){
+                    if ( database.unfollowUser(username, token[2]) ){
                         description = Communication.Success.toString();
                         // notifico all'utente che viene seguito che user ha smesso di seguirlo
-                        stub.doCallback(token[2], "UNFOLLOW;" + user +";");
+                        stub.doCallback(token[2], "UNFOLLOW;" + username +";");
                     }
                     else 
                         description = Communication.Failure.toString();
@@ -228,7 +246,7 @@ public class Worker extends Thread {
                     break;
                 }
                 case VIEW_BLOG:{
-                    Set<WinsomePost> tmp = database.viewBlog(user, true);
+                    Set<WinsomePost> tmp = database.viewBlog(username, true);
                     if ( tmp == null || tmp.isEmpty() ){ // Non solleva NullPointerException perché java ha la Short-circuit evaluation
                         description = Communication.EmptySet.toString();
                         break;
@@ -256,9 +274,9 @@ public class Worker extends Thread {
             attr = "";
             description = Communication.Failure.toString();
             e.printStackTrace();
-        } finally {
-            reply = description + "\n" + attr.toString() + "\n";
-        }            
+        }
+        
+        reply = description + "\n" + attr.toString() + "\n";            
 
         if ( DEBUG ) System.out.println("WORKER: Restituisco " + reply + " da processRequest");
         return reply;
@@ -276,6 +294,7 @@ public class Worker extends Thread {
                 break;
             }
             // Il selector si sveglia, c'è stata una richiesta su un canale
+            // Se si fosse svegliato per la wakeup da parte del ServerMain controlla comunque se ci sono richieste client
             Set <SelectionKey> readyKeys = selector.selectedKeys();
             Iterator <SelectionKey> iterator = readyKeys.iterator();
             while ( iterator.hasNext() ){
@@ -300,12 +319,12 @@ public class Worker extends Thread {
                         String msg = ( String ) key.attachment();
                         client.configureBlocking(false);
 
-                        // if ( DEBUG ) System.out.println("WORKER: Provo a leggere cosa mi ha inviato un client");
+                        if ( DEBUG ) System.out.println("WORKER: Provo a leggere cosa mi ha inviato un client");
                         ByteBuffer buffer = ByteBuffer.allocate(KILOBYTE);
                         buffer.clear();
 
                         int byteRead = client.read(buffer);
-                        // if ( DEBUG ) System.out.println("WORKER: Leggo "+ byteRead + " bytes dal client");
+                        if ( DEBUG ) System.out.println("WORKER: Leggo "+ byteRead + " bytes dal client");
 
                         buffer.flip();
                         if ( msg == null )
@@ -316,7 +335,7 @@ public class Worker extends Thread {
                         if ( byteRead == KILOBYTE ){
                             // Ho riempito il buffer, potrei non aver letto tutto
                             key.attach(msg);
-                            // if ( DEBUG ) System.out.println("WORKER: Lettura incompleta, compongo il messaggio al ciclo successivo, per ora ho letto \""+ msg +"\"");
+                            if ( DEBUG ) System.out.println("WORKER: Lettura incompleta, compongo il messaggio al ciclo successivo, per ora ho letto \""+ msg +"\"");
                         }
                         else if ( byteRead == -1 ){
                             key.cancel();
@@ -329,7 +348,6 @@ public class Worker extends Thread {
                             // Elaboro la richiesta
                             // Metto la risposta nell'attachment
                             String reply = processRequest(msg);
-                            // if ( DEBUG ) System.out.println("WORKER: Spero di leggere questo messaggio! Significa che processRequest è ritornata");
                             key.attach(reply);
 
                             key.interestOps(SelectionKey.OP_WRITE);
@@ -348,8 +366,7 @@ public class Worker extends Thread {
                             key.cancel();
                             client.close();
                         }
-                        // if ( DEBUG ) System.out.println("WORKER: Sto per inviare la risposta al client, analiziamola:\n" + reply);
-                        // if ( DEBUG ) System.out.println("WORKER: Faccio la wrap della richiesta, poi la write");
+                        if ( DEBUG ) System.out.println("WORKER: Sto per inviare la risposta al client, analiziamola:\n" + reply);
 
                         ByteBuffer buffer = ByteBuffer.wrap(reply.getBytes());
                         int byteWrote = client.write(buffer);
@@ -360,10 +377,10 @@ public class Worker extends Thread {
                             key.attach(null); // Resetto l'attchament, altrimenti ritrovo la reply in allegato quando vado a leggere la prossima richiesta di questo client
                             key.interestOps(SelectionKey.OP_READ);                            
                         }
-                        // TODO se non ho scritto tutto? Limit e position saranno nella giusta posizione per la prossima scrittura
-                        // Sarebbe così se mandassi un byte buffer, ma mando un oggetto reply
+                        
                     }
                 } catch ( Exception e ){
+                    // Se ci sono problemi con la chiave chiudo la connesione con quel client
                     e.printStackTrace();
                     key.cancel();
                     try {
@@ -374,7 +391,6 @@ public class Worker extends Thread {
                     }
                 }
             }
-
         }
         try{
             selector.close();

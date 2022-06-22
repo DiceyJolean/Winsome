@@ -1,5 +1,9 @@
 package shared;
 
+/**
+ * Classe che gestisce la varie casistiche di risposta dal server al client.
+ * Anche se non è stata grandemente utilizzata, ho preferito lasciarla per eventuali modifiche
+ */
 public enum Communication {
     Success("Successo"),
     AlreadyLogged("L'utente ha già effettuato il login"),

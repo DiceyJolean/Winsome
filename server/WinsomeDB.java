@@ -38,12 +38,17 @@ public class WinsomeDB implements Serializable {
         newPost = new AtomicInteger(0);
     }
 
+
+
+
+
+
     /**
      * Aggiunge un nuovo utente a Winsome. Questo metodo viene invocato dal thread che rispristina lo stato
      * iniziale di Winsome e dalle funzioni RMI durante la registrazione di un nuovo utente
      * 
      * @param user Utente da aggiungere a Winsome
-     * @return true se l'inserimento è andato a buon fine, false altrimenti
+     * @return true se l'inserimento è andato a buon fine, altrimenti solleva eccezione
      * @throws NullPointerException Se user è null
      * @throws WinsomeException Se era già presente un utente con lo stesso nickname in Winsome
      */
@@ -84,7 +89,7 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
-     * Rimuove il post dal database e rimuove i rewin del post
+     * Rimuove il post dal database e rimuove i rewin del post.
      * 
      * @param id ID del post da rimuovere
      * @return true se l'operazione è andata a buon fine, false altrimenti
@@ -104,9 +109,9 @@ public class WinsomeDB implements Serializable {
         return true;
     }
 
-    // Restituisce un riferimento ai post pubblicati dall'utente
     /**
-     * Restituisce un riferimento ai post pubblicati dall'utente
+     * Restituisce un riferimento ai post pubblicati dall'utente.
+     * Questo metodo viene invocato dal thread per effettuare il calcolo delle ricompense.
      * 
      * @param user Utente di cui si vogliono i post
      * @return i post di cui user è l'autore (null è un valore valido)
@@ -126,6 +131,63 @@ public class WinsomeDB implements Serializable {
         return users.get(user).getPosts(); 
     }
 
+    /**
+     * Aggiorna i portafogli degli utenti. Questo metodo viene
+     * invocato dal thread per effettuare il calcolo delle ricompense.
+     * Il metodo è concorrente
+     * 
+     * @param rewardPerUser Struttura che contiene le ricompense per gli utenti
+     * @return true se l'operazione è andata a buon fine
+     */
+    protected boolean updateReward(Map<String, Double> rewardPerUser){
+
+        for ( WinsomeUser user : users.values() )
+            if ( rewardPerUser.get(user.getNickname()) != null ){
+                lock.writeLock().lock(); // Necessario sicnronizzare in scrittura per evitare race condition con il thread che effettua il backup
+                user.updateReward(Calendar.getInstance().getTime(), rewardPerUser.get(user.getNickname()));
+                lock.writeLock().unlock();
+            }
+
+        return true;
+    }
+
+    /**
+     * Restituisce un riferimento alla struttura degli utenti.
+     * Questo metodo viene invocato da più thread, non è sincronizzato
+     * 
+     * @return Gli utenti di Winsome
+     */
+    protected Map<String, WinsomeUser> getUsers(){
+        return users;
+    }
+
+    /**
+     * Ripristina le strutture del database.
+     * Le informazioni sui post e sui tag vengono recuperate tramite gli utenti.
+     * Questo meotdo viene invocato dal thread che effettua il backup
+     * 
+     * @param users La struttura degli utenti del database.
+     * @return true se l'operazione ha avuto successo
+     */
+    protected boolean loadDatabase(Map<String, WinsomeUser> users){
+        if ( users == null )
+            return false;
+
+        this.users = users;
+        for ( WinsomeUser user : this.users.values() ){
+            for ( WinsomePost post : user.getPosts() ){
+                newPost.incrementAndGet(); // Aggiorno l'identificativo dei post
+                posts.putIfAbsent(post.getIdPost(), post); // Utilizzo putIfAbsent invece che la put per non sovrascrivere, evito modifiche malevole al db
+            }
+            for ( String tag : user.getTags() ){
+                tags.putIfAbsent(tag, new HashSet<String>()); // Evito di sovrascrivere se il tag era già presente
+                // Aaggiungo l'utente all'insieme di quelli che hanno indicato quel tag
+                tags.get(tag).add(user.getNickname());
+            }
+        }
+
+        return true;
+    }
 
 
 
@@ -173,9 +235,10 @@ public class WinsomeDB implements Serializable {
     }
     
     /**
+     * Toglie un follower da quelli di un utente
      * 
-     * @param username
-     * @param toUnfollow
+     * @param username Utente che smette di seguire
+     * @param toUnfollow L'utente da smettere di seguire
      * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
      * @throws NullPointerException Se username o toUnfollow sono null
@@ -207,9 +270,10 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
+     * Restituisce gli utenti che hanno almeno un tag in comune con quelli di un utente
      * 
-     * @param username
-     * @return
+     * @param username Utente di cui si voglio conoscere gli utenti con almeno un tag in comune
+     * @return L'insieme degli utenti con almeno un tag in comune
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
      * @throws NullPointerException Se username è null
      */
@@ -226,11 +290,11 @@ public class WinsomeDB implements Serializable {
             throw new WinsomeException("L'utente non ha effettuato il login");
 
         Set<String> usersWithTagInCommon = new HashSet<String>();
-        Set<String> userTags = user.getTags(); // Se lancia NullPointerExeption la gestisce il server
+        Set<String> userTags = user.getTags(); // Se lancia NullPointerExeption la gestisce il worker
         
         for ( String tag : userTags )
             // Per ogni tag aggiungo all'insieme degli utenti con un tag in comune gli utenti presenti nel campo value della struttura dei tags
-            usersWithTagInCommon.addAll(tags.get(tag)); // Se lancia NullPointerException la gestisce il server
+            usersWithTagInCommon.addAll(tags.get(tag)); // Se lancia NullPointerException la gestisce il worker
 
         // Tolgo dall'insieme l'utente che ha fatto la richiesta
         usersWithTagInCommon.remove(username);
@@ -238,9 +302,10 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
+     * Restituisce gli utenti seguiti da un utente
      * 
-     * @param username
-     * @return
+     * @param username Utente di cui si vogliono conoscere gli utenti seguiti
+     * @return L'insieme degli utenti seguiti
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
      * @throws NullPointerException Se username è null
      */
@@ -260,9 +325,10 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
+     * Effettua il login di un utente
      * 
-     * @param username
-     * @param password
+     * @param username Utente di cui si effettua il login
+     * @param password Password in chiaro dell'utente
      * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
      * @throws NullPointerException Se username o password sono null
@@ -285,8 +351,9 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
+     * Effettua il logout di un utente
      * 
-     * @param username
+     * @param username L'utente di cui si effettua il logout
      * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
      * @throws NullPointerException Se username è null
@@ -312,10 +379,11 @@ public class WinsomeDB implements Serializable {
     }
     
     /**
+     * Restituisce il blog, ovvero l'insieme dei post pubblicati e rewinnati dall'utente
      * 
-     * @param username
-     * @param checkLogin
-     * @return
+     * @param username Utente di cui si vuole ottenere il blog
+     * @param checkLogin true se è necessario che l'utente abbia effettuato il login, false altrimenti
+     * @return Il blog dell'utente, null è un valore valido
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
      * @throws NullPointerException Se username è null
      */
@@ -342,17 +410,17 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
+     * Crea un nuovo post
      * 
-     * @param author
-     * @param title
-     * @param content
+     * @param author Autore del post
+     * @param title Titolo del post
+     * @param content Contenuto del post
      * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
-     * @throws IllegalAccessException
      * @throws NullPointerException Se author, title o content sono null
      */
     protected boolean createPost(String author, String title, String content)
-    throws WinsomeException, IllegalAccessException, NullPointerException {
+    throws WinsomeException, NullPointerException {
         if ( author == null || title == null || content == null )
             throw new NullPointerException();
 
@@ -380,10 +448,11 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
+     * Restituisce il feed di un utente, ovvero i blog degli utenti seguiti
      * 
-     * @param username
-     * @param checkLogin
-     * @return
+     * @param username Utente di cui si vuole ottenere il feed
+     * @param checkLogin true se è necessario che l'utente abbia effettuato il login, false altrimenti
+     * @return Il feed dell'utente, null è un valore valido
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
      * @throws NullPointerException Se username è null
      */
@@ -410,11 +479,12 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
+     * Restituisce il post in formato leggibile
      * 
-     * @param idPost
-     * @return
+     * @param idPost Id del post che si vuole mostrare
+     * @return Il post in formato leggibile
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
-     * @throws IllegalArgumentException
+     * @throws IllegalArgumentException Se idPost ha un valore negativo
      */
     protected String showPost(int idPost)
     throws WinsomeException, IllegalArgumentException {
@@ -430,9 +500,10 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
-     * Elimina un post da Winsome, quindi lo elimina dal blog dell'autore e rimuove i suoi rewin
+     * Elimina un post da Winsome, quindi lo elimina dal blog dell'autore e rimuove i suoi rewin.
+     * Chi richiede l'eliminazione di un post deve esserne l'autore
      * 
-     * @param username Utente che richiede l'operazione
+     * @param username Utente che richiede l'eliminazione
      * @param idPost Id del post da eliminare
      * @return true se l'operazione è andata a buon fine, false altrimenti
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
@@ -478,12 +549,14 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
+     * Effettua il rewin di un post per un utente.
+     * Si può effettuare il rewin di un post solo se è nel proprio feed
      * 
-     * @param username
-     * @param idPost
+     * @param username Utente che richiede di effettuare i login
+     * @param idPost Id del post da rewinnare
      * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
-     * @throws IllegalArgumentException
+     * @throws IllegalArgumentException Se idPost ha un valore negativo
      * @throws NullPointerException Se username è null
      */
     protected boolean rewinPost(String username, int idPost)
@@ -515,13 +588,16 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
+     * Aggiunge un voto positivo o negativo a un post da parte di un utente.
+     * Non possono essere aggiunti più voti a un post dallo stesso utente.
+     * Un utente può votare un post solo se è presente nel proprio feed
      * 
-     * @param username
-     * @param idPost
-     * @param vote
+     * @param username Utente che richiede di votare
+     * @param idPost Id del post che si vuole votare
+     * @param vote Valore del voto, 1 per un voto positivo, -1 per uno negativo
      * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
-     * @throws IllegalArgumentException
+     * @throws IllegalArgumentException Se idPost ha un valore negativo
      * @throws NullPointerException Se username è null
      */
     protected boolean ratePost(String username, int idPost, int vote)
@@ -552,13 +628,14 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
+     * Aggiunge un commento a un post da parte di un utente
      * 
-     * @param username
-     * @param idPost
-     * @param comment
+     * @param username L'utente che commenta
+     * @param idPost Id del post da commentare
+     * @param comment Contenuto del commento
      * @return true se l'operazione è andata a buon fine, altrimenti solleva eccezione
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
-     * @throws IllegalArgumentException
+     * @throws IllegalArgumentException Se idPost ha un valore negativo
      * @throws NullPointerException Se username o comment sono null
      */
     protected boolean addComment(String username, int idPost, String comment)
@@ -595,9 +672,10 @@ public class WinsomeDB implements Serializable {
     }
 
     /**
+     * Restuisce lo storico del portafoglio di un utente
      * 
-     * @param username
-     * @return
+     * @param username Utente di cui si richiede lo storico
+     * @return Lo storico del portafolgio
      * @throws WinsomeException Se l'operazione non è consentita (specificato nel message)
      * @throws NullPointerException Se username è null
      */
@@ -617,66 +695,9 @@ public class WinsomeDB implements Serializable {
 
         /*
          * Due parole anche qui... TODO
-         * il wallet viene toccato da tutti i thread, reward, server e backup.
+         * il wallet viene toccato da tutti i thread, reward, Worker e backup.
          * Rendendo essa una coda concorrente risolvo? Mi sembra di sì
          */
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    protected boolean updateReward(Map<String, Double> rewardPerUser){
-        // la concurrent hashmap accede alla struttura degli utenti, 
-        // per cui se il server contemporaneamente esegue altre istruzioni sugli utenti si possono verificare race condition
-
-        for ( WinsomeUser user : users.values() )
-            if ( rewardPerUser.get(user.getNickname()) != null ){
-                lock.writeLock().lock();
-                user.updateReward(Calendar.getInstance().getTime(), rewardPerUser.get(user.getNickname()));
-                lock.writeLock().unlock();
-            }
-
-        return true;
-    }
-
-    // Restituisce un riferimento agli utenti presenti 
-    // TODO ??? questa si lascia così? users è una concurrenthashmpa...
-    protected Map<String, WinsomeUser> getUsers(){
-        return users;
-    }
-
-    // Per evitare ridondanza nel file database recupero il Database di Winsome soltanto tramite la struttura degli utenti
-    protected boolean loadDatabase(Map<String, WinsomeUser> users){
-        if ( users == null )
-            return false;
-
-        this.users = users;
-        for ( WinsomeUser user : this.users.values() ){
-            for ( WinsomePost post : user.getPosts() ){
-                newPost.incrementAndGet();
-                posts.putIfAbsent(post.getIdPost(), post); // Utilizzo putIfAbsent invece che la put per non sovrascrivere, evito modifiche malevole al db
-            }
-            for ( String tag : user.getTags() ){
-                tags.putIfAbsent(tag, new HashSet<String>());
-                // Poi aggiungo l'utente all'insieme di quelli che hanno indicato quel tag
-                tags.get(tag).add(user.getNickname());
-            }
-        }
-
-        return true;
     }
 
 }

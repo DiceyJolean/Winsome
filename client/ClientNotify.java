@@ -6,7 +6,6 @@ import java.util.Set;
 
 import shared.ClientNotifyInterface;
 
-// Classe che serve al server per mandare la notifica al client (per effettuare la callback)
 public class ClientNotify extends UnicastRemoteObject implements ClientNotifyInterface {
 
     private Set<String> followers = null;
@@ -33,12 +32,10 @@ public class ClientNotify extends UnicastRemoteObject implements ClientNotifyInt
             return false;
 
         if ( followers == null )
-            // TODO
-            // Se il server può invocare questo metodo, significa che lo stub dell'utente
-            // era presente, quindi l'utente è attualmente registrato al servizio di notifica
-            // e se questa condizione è verifica c'è stato un errore fatale
+            // Non deve verificarsi mai
             return false;
 
+        // La notifica è nella forma FOLLOW/UNFOLLOW;NomeFollower;
         String[] token = notify.split(";");
         if ( token.length < 2 )
             return false;

@@ -19,25 +19,20 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
     }
 
     @Override
-    public boolean register(String username, String password, Set<String> tags)
-    throws RemoteException, WinsomeException {
-        try{
+    public String register(String username, String password, Set<String> tags)
+    throws RemoteException {
+        
             for ( String tag : tags )
                 tag.toLowerCase();
             WinsomeUser newUser = new WinsomeUser(username, password, tags);
-            if ( !db.addUser(newUser) ){
-                if ( DEBUG ) System.out.println("RMI register: inserimento di " + username + " fallito");
-                return false;
-            }
+            try{
+                db.addUser(newUser);
+            } catch ( WinsomeException e ){
+                // Nickname già in uso
+                return e.getMessage();
+            }       
 
-            return true;
-        }
-        catch ( WinsomeException e ){
-            throw e;
-        }
-        catch ( Exception e ){
-            return false;
-        }
+            return Communication.Success.toString();
     }
 
     @Override
@@ -78,10 +73,11 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
                 stub.notify(notify);
                 return true;
             }
-        /**
-         * se user non è connesso la notifica non verrà inviata
-         * perché non si è ancora registrato alle callback, o si è de-registrato al logout
-         */
+        
+        /*
+        se user non è connesso la notifica non verrà inviata perché non
+        si è ancora registrato alle callback o si è de-registrato al logout
+        */
         
         return false;
     }

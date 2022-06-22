@@ -4,8 +4,6 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.Set;
 
-import server.WinsomeException;
-
 public interface RMIServiceInterface extends Remote {
 
     /**
@@ -14,11 +12,11 @@ public interface RMIServiceInterface extends Remote {
      * @param username Username univoco dell'utente
      * @param password Password del nuovo utente
      * @param tags Tra uno e cinque tags che individuano gli interessi dell'utente
-     * @return true se la registrazione è andata a buon fine, false altrimenti
+     * @return Un messaggio che indica l'esito dell'operazione
      * @throws RemoteException
      */
-    public abstract boolean register(String username, String password, Set<String> tags)
-    throws RemoteException, WinsomeException;
+    public abstract String register(String username, String password, Set<String> tags)
+    throws RemoteException;
 
     public abstract Set<String> registerForCallback( ClientNotifyInterface user)
     throws RemoteException;

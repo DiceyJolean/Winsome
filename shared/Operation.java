@@ -1,5 +1,8 @@
 package shared;
 
+/**
+ * Classe che rappresenta le varie operazioni che il client può richiedere al server
+ */
 public enum Operation {
     ADD_COMMENT,
     LIST_FOLLOWING,
