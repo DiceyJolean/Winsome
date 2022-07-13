@@ -8,8 +8,6 @@ import java.util.Set;
 import shared.*;
 
 public class WinsomeRMIService extends RemoteObject implements RMIServiceInterface {
-    private final static boolean DEBUG = false;
-
     private Set<ClientNotifyInterface> clients;
     private WinsomeDB db;
     
@@ -36,14 +34,12 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
     }
 
     @Override
-    // TODO Il synch è per clients, ma la getFollower è una sezione critica
     public synchronized Set<String> registerForCallback(ClientNotifyInterface user)
     throws RemoteException {
         clients.add(user);
-        if ( DEBUG ) System.out.println("RMIService: Aggiunto nuovo utente \"" + user.getUser() + "\" al servizio di notifica");
 
         try{
-            // TODO followers di user com'è sincronizzata? getFoll restituisce una copia, e nel frattempo è sincronizzata
+            // Non è sezione critica perché getFollower è synchronized e al client restituisce una copia
             Set<String> followers = db.getUsers().get(user.getUser()).getFollower();
             return followers;
         } catch ( Exception e ){
@@ -56,7 +52,6 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
     public synchronized boolean unregisterForCallback(ClientNotifyInterface user)
     throws RemoteException {
 
-        if ( DEBUG ) System.out.println("RMIService: Rimuovo un utente \"" + user.getUser() + "\" a Winsome");
         return clients.remove(user);
     }
 
@@ -68,8 +63,6 @@ public class WinsomeRMIService extends RemoteObject implements RMIServiceInterfa
             // Ok equals perché estendo RemoteObject
             if ( stub.getUser().equals(user) ){
                 
-                if ( DEBUG ) System.out.println("RMIService: Invio una notifica a un utente \"" + user + "\"");
-
                 stub.notify(notify);
                 return true;
             }

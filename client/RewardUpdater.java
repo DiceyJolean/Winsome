@@ -52,6 +52,7 @@ public class RewardUpdater implements Runnable{
         while ( true ){
             try{
                 multicastSocket.receive(packet);
+                // System.out.println(new String(packet.getData(), 0, packet.getLength()));
                 System.out.println("Calcolo delle ricompense effettuato");
                 System.out.flush();
             } catch ( IOException e ){

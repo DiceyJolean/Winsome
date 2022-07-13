@@ -20,7 +20,7 @@ public class WinsomeDB implements Serializable {
     private final boolean DEBUG = false;
 
     private Map<Integer, WinsomePost> posts;
-    private AtomicInteger newPost; // Non è necessario che sia atomic perché solo il worker crea e cancella post (quindi non si verificano race condition)
+    private AtomicInteger newPostId; // Non è necessario che sia atomic perché solo il worker crea e cancella post (quindi non si verificano race condition)
 
     protected ReadWriteLock lock; // Chiunque può creare un database, ma solo chi è nel package server può utilizzare la lock
     private Map<String, WinsomeUser> users;
@@ -35,7 +35,7 @@ public class WinsomeDB implements Serializable {
         posts = new HashMap<Integer, WinsomePost>(); // La concorrenza è gestita con la readwrite lock
         users = new ConcurrentHashMap<String, WinsomeUser>(); // Concurrent perché possono verificarsi race condition con RMI
         tags = new HashMap<String, Set<String>>();
-        newPost = new AtomicInteger(0);
+        newPostId = new AtomicInteger(0);
     }
 
 
@@ -117,17 +117,8 @@ public class WinsomeDB implements Serializable {
      * @return i post di cui user è l'autore (null è un valore valido)
      */
     protected Set<WinsomePost> getPostPerUser(String user){
-        /*
-        // TODO qui concorrenza? restituisco una copia dei post
-        lock.readLock().lock();
-        Set<WinsomePost> tmp = new HashSet<WinsomePost>(users.get(user).getPosts());
-        // TODO visto che lavoro su una copia dei post, non è necessario sincronizzare post durante la print, addrate e addcomment
-        // TODO sì, ma così come si fa lo switch tra vecchi e nuovi? come si fa a incrementare niter?
-        lock.readLock().unlock();
-        */
-
-        // TODO qui va bloccata la lettura in qualche modo. Metti che un post viene eliminato nel frattempo
-        // ok, ho messo il metodo readLock e readUnlock che il reward chiamerà prima e dopo aver fatto con postperuser
+        // qui va bloccata la lettura in qualche modo. Metti che un post viene eliminato nel frattempo
+        // ok, reward blocca e sblocca la struttura in lettura prima e dopo aver fatto con postperuser
         return users.get(user).getPosts(); 
     }
 
@@ -176,7 +167,9 @@ public class WinsomeDB implements Serializable {
         this.users = users;
         for ( WinsomeUser user : this.users.values() ){
             for ( WinsomePost post : user.getPosts() ){
-                newPost.incrementAndGet(); // Aggiorno l'identificativo dei post
+                // Aggiorno l'identificativo dei post
+                if ( newPostId.get() < post.getIdPost() )
+                    newPostId.set(post.getIdPost());
                 posts.putIfAbsent(post.getIdPost(), post); // Utilizzo putIfAbsent invece che la put per non sovrascrivere, evito modifiche malevole al db
             }
             for ( String tag : user.getTags() ){
@@ -431,17 +424,13 @@ public class WinsomeDB implements Serializable {
         if ( !user.isLogged() )
             throw new WinsomeException("L'utente non ha effettuato il login");
 
-        // TODO ma la gestione della concorrenza?
-        // Qui o il reward lavora su una copia, o devo sincronizzare
-        // Per ora sincronizzo
-        WinsomePost post = new WinsomePost(newPost.incrementAndGet(), title, author, content); // solleva IllegalArgument e NullPointer
+        WinsomePost post = new WinsomePost(newPostId.incrementAndGet(), title, author, content); // solleva IllegalArgument e NullPointer
         
         // Qui inizia la race condition con il reward calculator
         lock.writeLock().lock();
         user.addPost(post);
         lock.writeLock().unlock();
-
-        // Qui finisce la sincronizzazione immagino, dipende se il reward lavora su posts, ma mi sembra di no
+        // Qui finisce la sincronizzazione
         posts.put(post.getIdPost(), post);
 
         return true;
@@ -491,7 +480,6 @@ public class WinsomeDB implements Serializable {
         if ( idPost < 0 )
             throw new IllegalArgumentException();
 
-        // TODO se modifico nIter mentre lo sto inviando al client?
         WinsomePost post = posts.get(idPost);
         if ( post == null )
             throw new WinsomeException("Il post non è presente in Winsome");
@@ -694,9 +682,8 @@ public class WinsomeDB implements Serializable {
         return user.getReward(); // Ok, è una concurrent collection
 
         /*
-         * Due parole anche qui... TODO
-         * il wallet viene toccato da tutti i thread, reward, Worker e backup.
-         * Rendendo essa una coda concorrente risolvo? Mi sembra di sì
+         * il wallet viene toccato da tutti i thread, reward, worker e backup.
+         * Rendendo essa una coda concorrente risolvo
          */
     }
 

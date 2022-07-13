@@ -20,7 +20,6 @@ import shared.*;
 public class ServerMain {
     private static final int SUCCESS = 0;
     private static final int FAILURE = 1;
-    private static final boolean DEBUG = false;
     
     private static String multicastAddress = null; // Indirizzo per il multicast
     private static String filename = null; // Nome del file sove salvare lo stato di Winsome
@@ -31,7 +30,7 @@ public class ServerMain {
     private static int rmiPort = -1; // Porta per il servizio RMI
     private static int rewardPeriod = -1; // Periodo ogni quanto viene effettuato il calcolo delle ricompense
     private static int autosavePeriod = -1; // Periodo ogni quanto viene effettuato il salvataggio dello stato
-    private static float percAuth = -1; // Percentuale di ricompensa che spettano all'autore del post
+    private static float percAuth = -1; // Percentuale di ricompensa che spetta all'autore del post
 
     public static void main (String[] args){
 
@@ -114,8 +113,6 @@ public class ServerMain {
             System.exit(FAILURE);
         }
         
-        if ( DEBUG ) System.out.println("SERVER: Parametri di configurazione corretti");
-
         WinsomeState state = null;
 
         // Ripristino lo stato di Winsome
@@ -141,7 +138,6 @@ public class ServerMain {
             Registry r = LocateRegistry.getRegistry(rmiPort);
             r.rebind(rmiServiceName, stub);
 
-            if ( DEBUG ) System.out.println("SERVER: Servizio RMI pronto su (" + rmiServiceName + ", " + rmiPort + ")\n");
         } catch ( RemoteException e ){
             e.printStackTrace();
             System.exit(FAILURE);

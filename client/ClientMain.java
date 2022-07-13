@@ -25,7 +25,6 @@ import shared.*;
     Fa controlli sulla validità della richiesta prima di inoltrarla
 */
 public class ClientMain {
-    private static final boolean DEBUG = false;
     private static final int MINTAGS = 1;
     private static final int MAXTAGS = 5;
     private static final int SUCCESS = 0;
@@ -108,6 +107,7 @@ public class ClientMain {
 
         // Apertura della connessione TCP con il server
         InetAddress address = null;
+        System.out.println("Connessione con il server in corso, attendere...");
         try{
             address = InetAddress.getLocalHost();
             int i = 0;
@@ -117,7 +117,6 @@ public class ClientMain {
                 if ( socket != null )
                     break;
                 try{
-                    if ( DEBUG ) System.out.println("Provo a  connettermi sulla porta " + tcpPort + "\n");
                     socket = new Socket(address, tcpPort);
                 } catch ( ConnectException e ){
                     if ( i < connectionAttempt )
@@ -422,8 +421,6 @@ public class ClientMain {
         try{
             Registry registry = LocateRegistry.getRegistry(rmiPort);
             serviceRMI = ( RMIServiceInterface ) registry.lookup(rmiServiceName);
-            
-            if ( DEBUG ) System.out.println("CLIENT: Mi iscrivo a Winsome");
 
             String reply = serviceRMI.register(username, password, tags);
             if ( !reply.equals(Communication.Success.toString()) ){
@@ -453,12 +450,12 @@ public class ClientMain {
 
         try{
             out.println(request);
-            if ( DEBUG ) System.out.println("CLIENT: Ho inviato la richiesta al server");
             String reply = in.readLine();
             logged = reply.equals(Communication.Success.toString()) ? true : false;
             
             if ( !logged ){
                 System.out.println(Operation.LOGIN + " fallita: " + reply);
+                in.readLine(); // Leggo gli attributi, ma li ignoro perché non servono
                 return false;
             }
 
@@ -490,9 +487,6 @@ public class ClientMain {
                     followers = serviceRMI.registerForCallback(stub);
                     stub.setFollowers(followers);
                 }
-
-                if ( DEBUG ) System.out.println("CLIENT: Mi registro al servizio di notifica");
-                // if ( DEBUG ) System.out.println("CLIENT: I miei follower sono: " + followers.toString());
             } catch ( NotBoundException e ){
                 System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
                 System.exit(FAILURE);
@@ -536,7 +530,6 @@ public class ClientMain {
             // Finita la sessione su Winsome, il client si cancella dal servizio di callback
             try{
                 serviceRMI.unregisterForCallback(stub);
-                if ( DEBUG ) System.out.println("CLIENT: Mi cancello dal servizio di notifica");
             } catch (RemoteException e ){
                 System.err.println("Errore fatale: " + e.getMessage() + ", terminazione");
                 System.exit(FAILURE);
@@ -551,6 +544,11 @@ public class ClientMain {
     }
 
     public static boolean listUsers(){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.LIST_USERS + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
         // Preparo la richiesta nel formato che il server riesce a leggere
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.LIST_USERS.toString(), thisUser)));
         try{
@@ -575,8 +573,11 @@ public class ClientMain {
     }
 
     public static boolean listFollowers(){
-        if ( !logged )
-            System.out.println("Per visualizzare i proprio follower è necessario effettuare il login");
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println("LIST_FOLLOWERS fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         synchronized ( followers ){
             if ( followers == null || followers.isEmpty() )
@@ -589,6 +590,11 @@ public class ClientMain {
     }
 
     public static boolean listFollowing(){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.LIST_FOLLOWING + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.LIST_FOLLOWING.toString(), thisUser)));
         try{
@@ -613,6 +619,11 @@ public class ClientMain {
     }
 
     public static boolean followUser(String idUser){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.FOLLOW_USER + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
         
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.FOLLOW_USER.toString(), thisUser, idUser)));
         try{
@@ -635,6 +646,11 @@ public class ClientMain {
     }
 
     public static boolean unfollowUser(String idUser){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.UNFOLLOW_USER + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.UNFOLLOW_USER.toString(), thisUser, idUser)));
         try{
@@ -657,6 +673,11 @@ public class ClientMain {
     }
 
     public static boolean viewBlog(){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.VIEW_BLOG + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.VIEW_BLOG.toString(), thisUser)));
         try{
@@ -684,6 +705,11 @@ public class ClientMain {
     }
 
     public static boolean createPost(String title, String content){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.CREATE_POST + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.CREATE_POST.toString(), thisUser, title, content)));
         try{
@@ -706,6 +732,11 @@ public class ClientMain {
     }
 
     public static boolean showFeed(){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.SHOW_FEED + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.SHOW_FEED.toString(), thisUser)));
         try{
@@ -733,6 +764,11 @@ public class ClientMain {
     }
 
     public static boolean showPost(Integer idPost){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.SHOW_POST + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.SHOW_POST.toString(), thisUser, idPost.toString())));
         try{
@@ -761,6 +797,11 @@ public class ClientMain {
     }
 
     public static boolean deletePost(Integer idPost){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.DELETE_POST + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.DELETE_POST.toString(), thisUser, idPost.toString())));
         try{
@@ -783,6 +824,11 @@ public class ClientMain {
     }
 
     public static boolean rewinPost(Integer idPost){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.REWIN_POST + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.REWIN_POST.toString(), thisUser, idPost.toString())));
         try{
@@ -805,6 +851,11 @@ public class ClientMain {
     }
 
     public static boolean ratePost(Integer idPost, Integer vote){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.RATE_POST + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.RATE_POST.toString(), thisUser, idPost.toString(), vote.toString())));
         try{
@@ -827,6 +878,11 @@ public class ClientMain {
     }
 
     public static boolean addComment(Integer idPost, String content){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.ADD_COMMENT + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.ADD_COMMENT.toString(), thisUser, idPost.toString(), content)));
         try{
@@ -849,6 +905,11 @@ public class ClientMain {
     }
 
     public static boolean getWallet(){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.GET_WALLET + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.GET_WALLET.toString(), thisUser)));
         try{
@@ -877,6 +938,11 @@ public class ClientMain {
     }
 
     public static boolean getWalletBitcoin(){
+        if ( !logged || thisUser.equals("") ){
+            // Questo utente non aveva effettuato il login (con questo client)
+            System.err.println(Operation.GET_WALLET_BITCOIN + " fallita: Nessun utente si era loggato con questo client");
+            return false;
+        }
 
         String request = toRequest(new ArrayList<String>(Arrays.asList(Operation.GET_WALLET_BITCOIN.toString(), thisUser)));
         try{

@@ -72,7 +72,7 @@ public class WinsomeState extends Thread {
         try(
             PrintWriter out = new PrintWriter(uptadedDB);
         ){
-            uptadedDB.createNewFile(); // TODO serve?
+            uptadedDB.createNewFile();
             out.write(json);
         } catch ( IOException e ){
             e.printStackTrace();

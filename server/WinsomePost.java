@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Classe che rappresenta l'entità post all'interno di Winsome
@@ -22,7 +23,7 @@ public class WinsomePost implements Serializable {
     private Map<String, ArrayList<String>> newComments; // Insieme dei commenti ricevuti dal post (dopo l'ultima iterazione del rewarding)
     private Map<String, ArrayList<String>> oldComments; // Insieme dei commenti ricevuti dal post (prima dell'ultima iterazione del rewarding)
     private Set<String> rewinners; // Insieme degli utenti che hanno rewinnato il post
-    private int nIterations; // Numero di iterazioni del rewarding eseguite sul post
+    private AtomicInteger nIterations; // Numero di iterazioni del rewarding eseguite sul post
 
     // Vote può assumere solo i valori LIKE o UNLIKE
     public static enum Vote{
@@ -63,7 +64,7 @@ public class WinsomePost implements Serializable {
         this.newComments = new HashMap<String, ArrayList<String>>();
         this.oldComments = new HashMap<String, ArrayList<String>>();
         this.rewinners = new HashSet<String>();
-        this.nIterations = 0;
+        this.nIterations = new AtomicInteger(0);
     }
 
     /**
@@ -145,11 +146,6 @@ public class WinsomePost implements Serializable {
             commentsPrettyPrinting = commentsPrettyPrinting.substring(0, commentsPrettyPrinting.length()-2);
         commentsPrettyPrinting = commentsPrettyPrinting + "}";
 
-        int nIter;
-        synchronized ( this ){ // Mi serve la sincronizzazione per evitare la race condition con il thread che calcola le ricompense e aggiorna il campo nIterations
-            nIter = nIterations;
-        }
-
         return "\n\tID: " + idPost +
             "\n\tTITOLO: " + title +
             "\n\tCONTENUTO: " + content +
@@ -157,7 +153,7 @@ public class WinsomePost implements Serializable {
             "\n\tVOTI: " + votesPrettyPrinting +
             "\n\tCOMMENTI: " + commentsPrettyPrinting +
             "\n\tREWINNERS: " + rewinners.toString() +
-            "\n\tN_ITER: " + nIter + "\n";
+            "\n\tN_ITER: " + nIterations.get() + "\n";
     }
     
     /**
@@ -204,12 +200,10 @@ public class WinsomePost implements Serializable {
             }
         }
         
-        synchronized (this) { // Sincronizzo per evitare la race condition con il thread che calcola le ricompense
         if ( this.oldVotes.get(user) == null ) // Controllo che l'utente non abbia già aggiunto un voto prima dell'ultima iterazione del reward
             if ( this.newVotes.putIfAbsent(user, vote) == null ) // Controllo che l'utente non abbia già aggiunto un voto dopo l'ultima iterazione del reward
                 return true;
-        }
-
+        
         throw new WinsomeException("L'utente aveva già votato il post in precedenza");
     }
 
@@ -234,15 +228,13 @@ public class WinsomePost implements Serializable {
     
         // Aggiungo sempre in newComment
         // Sposto tra new e old dopo il calcolo del reward
-        synchronized ( this ){
-            
-            // Se non era presente l'entry adesso l'ho creata
-            newComments.putIfAbsent(user, new ArrayList<String>());
-            // Aggiungo un commento a quelli già presenti dello stesso utente
-            newComments.get(user).add(comment);
+        
+        // Se non era presente l'entry adesso l'ho creata
+        newComments.putIfAbsent(user, new ArrayList<String>());
+        // Aggiungo un commento a quelli già presenti dello stesso utente
+        newComments.get(user).add(comment);
 
-            return true;
-        }
+        return true;
     }
 
     /**
@@ -361,14 +353,14 @@ public class WinsomePost implements Serializable {
      * @return il numero di iterazioni del calcolo delle ricompense
      */
     protected int getIterations(){
-        return nIterations;
+        return nIterations.get();
     }
 
     /**
      * Incrementa il numero di iterazioni del calcolo delle ricompense su questo post
      */
     public void increaseIterations(){
-        nIterations++;
+        nIterations.incrementAndGet();
     }
 
 }

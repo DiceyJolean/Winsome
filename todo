@@ -1,8 +1,0 @@
-[DONE] sistemare quando list following, list users e wallet restituiscono un campo vuoto
-[DONE] concorrenza nelle race condition, vedi file
-[DONE] rate restituisce failure anche se va a buon fine
-le coordinate per il multicast vengono inviate dopo il login
-testare le modifiche a le funzioni wallet e walletbtc
-testare il codice dopo l'aggiunta della sincronizzazione
-parentesi wallet btc
-sistemare help lato client

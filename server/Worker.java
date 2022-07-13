@@ -18,10 +18,12 @@ import java.util.Set;
 
 import shared.*;
 
+/**
+	Classe che gestisce le connessioni e le richieste client
+*/
 public class Worker extends Thread {
     private final static String randomURL = "https://www.random.org/decimal-fractions/?num=1&dec=4&col=1&format=plain&rnd=new"; // URL a cui connettersi per recuperare un numero casuale
     private final int KILOBYTE = 1024;
-    private final static boolean DEBUG = false;
     
     private volatile boolean toStop = false; // Variabile per la terminazione del thread
     
@@ -87,7 +89,6 @@ public class Worker extends Thread {
         return s.toString();
     }
 
-    // Funzione che rappresenta il cuore di Winsome
     /**
      * Riceve una richiesta da un client e la soddisfa restituendo l'esito
      * 
@@ -103,8 +104,6 @@ public class Worker extends Thread {
         String[] token = request.split(";");
         Operation operation = Operation.valueOf(new String(token[0]));
         String username = new String(token[1]);
-
-        if ( DEBUG ) System.out.println("WORKER: Processo la richiesta di " + operation + " dell'utente " + username);
 
         try{
             switch ( operation ){
@@ -164,11 +163,11 @@ public class Worker extends Thread {
                     attr = "";
                     // Salvo lo storico del portafoglio in formato leggibile
                     for ( WinsomeWallet w : queue ){
-                        attr = attr + w.getDate() + " " + w.getValue()*n + ")\n";
+                        attr = attr + w.getDate() + " " + w.getValue()*n + "\n";
                         walletbtc = walletbtc + w.getValue()*n; // Aggiorno il valore complessivo del portafoglio in bitcoin
                     }
 
-                    attr += "Valore del portafoglio in bitcoin : " + walletbtc + " (Tasso di conversione: " + n + "\n;";
+                    attr += "Valore del portafoglio in bitcoin : " + walletbtc + " (Tasso di conversione: " + n + ")\n;";
 
                     break;
                 }
@@ -258,7 +257,6 @@ public class Worker extends Thread {
                 }
                 default:{
                     description = Communication.OperationNotSupported.toString();
-                    if ( DEBUG ) System.out.println("WORKER: Qualcosa è andato storto nel processare la richiesta: " + operation);
                     
                     return description.toString() + "\n" + attr.toString() + "\n";
                 }
@@ -278,7 +276,6 @@ public class Worker extends Thread {
         
         reply = description + "\n" + attr.toString() + "\n";            
 
-        if ( DEBUG ) System.out.println("WORKER: Restituisco " + reply + " da processRequest");
         return reply;
     }
 
@@ -307,7 +304,6 @@ public class Worker extends Thread {
                         // Connessione implicita lato Server
                         ServerSocketChannel server = (ServerSocketChannel) key.channel();
                         SocketChannel client = server.accept();
-                        if ( DEBUG ) System.out.println("WORKER: Connessione accettata");
                         client.configureBlocking(false);
                         
                         // Nuovo client, l'operazione che voglio associare è la lettura
@@ -317,17 +313,15 @@ public class Worker extends Thread {
                         
                         SocketChannel client = (SocketChannel) key.channel();
                         String msg = ( String ) key.attachment();
-                        client.configureBlocking(false);
 
-                        if ( DEBUG ) System.out.println("WORKER: Provo a leggere cosa mi ha inviato un client");
                         ByteBuffer buffer = ByteBuffer.allocate(KILOBYTE);
                         buffer.clear();
 
                         int byteRead = client.read(buffer);
-                        if ( DEBUG ) System.out.println("WORKER: Leggo "+ byteRead + " bytes dal client");
 
                         buffer.flip();
                         if ( msg == null )
+                            // Inizializzo msg per evitare che alla prossima iterazione sia nella forma nullOperazioneAttributi
                             msg = StandardCharsets.UTF_8.decode(buffer).toString();
                         else
                             msg = msg + StandardCharsets.UTF_8.decode(buffer).toString();
@@ -335,16 +329,13 @@ public class Worker extends Thread {
                         if ( byteRead == KILOBYTE ){
                             // Ho riempito il buffer, potrei non aver letto tutto
                             key.attach(msg);
-                            if ( DEBUG ) System.out.println("WORKER: Lettura incompleta, compongo il messaggio al ciclo successivo, per ora ho letto \""+ msg +"\"");
                         }
                         else if ( byteRead == -1 ){
                             key.cancel();
                             key.channel().close();
-                            if ( DEBUG ) System.out.println("WORKER: Socket chiusa dal client\n");
                         }
                         else if ( byteRead < KILOBYTE ){
                             // Ho letto tutto quello che il client ha inviato al server
-                            if ( DEBUG ) System.out.println("WORKER: Leggo una richiesta dal client");
                             // Elaboro la richiesta
                             // Metto la risposta nell'attachment
                             String reply = processRequest(msg);
@@ -366,14 +357,12 @@ public class Worker extends Thread {
                             key.cancel();
                             client.close();
                         }
-                        if ( DEBUG ) System.out.println("WORKER: Sto per inviare la risposta al client, analiziamola:\n" + reply);
 
                         ByteBuffer buffer = ByteBuffer.wrap(reply.getBytes());
                         int byteWrote = client.write(buffer);
 
                         if ( byteWrote == reply.getBytes().length ){
                             // Ho scritto tutto
-                            if ( DEBUG ) System.out.println("WORKER: Ho inviato la risposta al client\n");
                             key.attach(null); // Resetto l'attchament, altrimenti ritrovo la reply in allegato quando vado a leggere la prossima richiesta di questo client
                             key.interestOps(SelectionKey.OP_READ);                            
                         }

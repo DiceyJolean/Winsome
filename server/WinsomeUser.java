@@ -9,9 +9,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import server.bcrypt.src.BCrypt;
 
-// TODO nessun metodo è sincronizzato, va bene? Potrebbero accedere allo stesso utente più thread?
-// Accederebbero prima al DB di user, potrebbe capitare di dover fare due operazioni contemporaneamente? Perché no...
-// Potrei cambiare i Set con code sincronizzate, logged con AtomicInteger?
 /**
  * Classe che rappresenta un utente all'interno di Winsome
 */
@@ -24,7 +21,7 @@ public class WinsomeUser implements Serializable {
     private boolean loggedIn; // Flag che indica se l'utente è attualmente loggato
     private Set<String> tags; // Insieme dei tag dell'utente
     private Set<Integer> postRewinned; // Insieme segli id dei post rewinnati dall'utente
-    private Set<WinsomePost> blog; // Insieme dei post pubblicati da questo utente TODO ridondanza?? Sarà solo un riferimento, giustamente!
+    private Set<WinsomePost> blog; // Insieme dei post pubblicati da questo utente
     private Queue<WinsomeWallet> wallet; // Lista con lo storico degli aggiornamenti del portafoglio dell'utente
 
     /**
@@ -207,8 +204,6 @@ public class WinsomeUser implements Serializable {
         return true;
     }
 
-    // Restituisce una copia dei follower di questo utente
-    // TODO questa funzione va sincronizzata in qualche modo perché viene invocata dai client tramite RMI
     /**
      * Restituisce l'insieme dei follower di questo utente
      * @return Una deep copy dei follower
@@ -219,9 +214,6 @@ public class WinsomeUser implements Serializable {
         }
     }
 
-    /** 
-     * Effettua il logout dell'utente
-    */
     /**
      * Effettua il logout dell'utente, se non era attualmente loggato solleva eccezione
      * 
@@ -247,12 +239,6 @@ public class WinsomeUser implements Serializable {
     }
 
     /**
-     * Aggiorna il valore del portafoglio dell'utente
-     * 
-     * @param newReward Saldo da aggiungere al portafoglio
-     * @throws IllegalArgumentException Se newReward è minore di zero
-     */
-    /**
      * Aggiorna il portafoglio dell'utente
      * 
      * @param date Data dell'aggiornamento
@@ -276,13 +262,6 @@ public class WinsomeUser implements Serializable {
         return true;
     }
 
-    /**
-     * Rimuove un utente dai follower
-     * 
-     * @param user Utente da rimuovere dai follower
-     * @return true se la rimozione ha avuto successo, false altrimenti
-     * @throws NullArgumentException Se user è null
-     */
     /**
      * Rimuove un utente dai follower, se user non era un follower dell'utente solleva eccezione
      * 
@@ -309,13 +288,6 @@ public class WinsomeUser implements Serializable {
         return true;
     }
 
-    /**
-     * Rimuove un utente dai seguiti
-     * 
-     * @param user Utente da rimuovere dai seguiti
-     * @return true se la rimozione ha avuto successo, false altrimenti
-     * @throws NullArgumentException Se user è null
-     */
     /**
      * Rimuove un utente da quelli seguiti, se non era presente, l'operazione ha comunque successo
      * 
